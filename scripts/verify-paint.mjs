@@ -5,8 +5,9 @@
 //   1. npm run build && npm run start -- -p 3123
 //   2. chrome --headless=new --remote-debugging-port=9233 --user-data-dir=<geçici klasör> about:blank
 //   3. node scripts/verify-paint.mjs <etiket> [ekran-görüntüsü-klasörü]
-// Tuval yalnız varsayılan şablonu gösterir; başka şablonu denemek için Notebook.tsx'te geçici olarak
-// getTemplate("cross") verip yeniden derleyin ve etiketi "cross" yapın (şablon seçimi Adım 5'te).
+// Betik varsayılan şablonla (Kare) çalışır; köşe hesabı yalnız Kare ve Dörtlü id'lerini bilir.
+// Dörtlü'yü denemek için paintStore.ts'te başlangıç şablonunu geçici olarak "cross" yapıp yeniden derleyin ve etiketi
+// "cross" verin. Şablon seçiminin kendisi scripts/verify-templates.mjs ile denenir.
 // Çıktı: her kontrol için "OK" ya da "HATA" satırı. Herhangi bir HATA varsa çıkış kodu 1.
 //
 // Yalnız boyalı hücreler DOM'da olduğundan hücre geometrisi id'den hesaplanır (dünya koordinatı) ve SVG'nin

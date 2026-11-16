@@ -110,6 +110,52 @@ describe("boyama deposu", () => {
   });
 });
 
+describe("şablon seçimi", () => {
+  it("başlangıçta varsayılan şablon seçili", () => {
+    expect(store().templateId).toBe("square");
+  });
+
+  it("boş tuvalde şablon değiştirmek geçmişe yazılmaz", () => {
+    store().setTemplate("hexagon");
+    expect(store().templateId).toBe("hexagon");
+    expect(store().past).toEqual([]);
+  });
+
+  it("boyalı tuvalde şablon değiştirmek tuvali boşaltır; geri al şablonu boyamasıyla geri getirir", () => {
+    tap("0-0");
+    store().setTemplate("circle");
+    expect(store().templateId).toBe("circle");
+    expect(store().fills).toEqual({});
+    store().undo();
+    expect(store().templateId).toBe("square");
+    expect(store().fills).toEqual({ "0-0": PRESET_COLORS[0] });
+    store().redo();
+    expect(store().templateId).toBe("circle");
+    expect(store().fills).toEqual({});
+  });
+
+  it("geri alma, boyamanın yapıldığı şablona döner", () => {
+    store().setTemplate("hexagon");
+    tap("0-0-a");
+    store().setTemplate("leaf");
+    tap("0-0-leaf");
+    store().undo(); // yaprak boyaması gider
+    store().undo(); // altıgen geri gelir
+    expect(store().templateId).toBe("hexagon");
+    expect(store().fills).toEqual({ "0-0-a": PRESET_COLORS[0] });
+  });
+
+  it("aynı şablonu seçmek ya da fırça sürerken değiştirmek bir şey yapmaz", () => {
+    tap("0-0");
+    store().setTemplate("square");
+    expect(store().past).toHaveLength(1);
+    store().startStroke("1-0");
+    store().setTemplate("cube");
+    expect(store().templateId).toBe("square");
+    store().endStroke();
+  });
+});
+
 describe("renk yardımcıları", () => {
   it("normalizeColor kısa ve büyük harfli hex'i tek biçime getirir", () => {
     expect(normalizeColor("#ABC")).toBe("#aabbcc");

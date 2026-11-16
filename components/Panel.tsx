@@ -3,46 +3,9 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 import { panelTabs, type PanelId } from "./Tabs";
 import { PRESET_COLORS, usePaintStore } from "@/lib/paintStore";
+import { TemplatePicker } from "./TemplatePicker";
 
 type PanelProps = { activePanel: PanelId | null; onClose: () => void };
-
-function MiniGrid({ kind }: { kind: number }) {
-  return (
-    <svg className="mini-grid" viewBox="0 0 72 72" fill="none" aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="0.65">
-        {kind === 0 && Array.from({ length: 7 }, (_, i) => (
-          <path key={i} d={`M${12 + i * 8} 12V60 M12 ${12 + i * 8}H60`} />
-        ))}
-        {kind === 1 && <g transform="translate(36 36) rotate(45) translate(-36 -36)">
-          {Array.from({ length: 5 }, (_, i) => <path key={i} d={`M${20 + i * 8} 20V52 M20 ${20 + i * 8}H52`} />)}
-        </g>}
-        {kind === 2 && Array.from({ length: 12 }, (_, i) => {
-          const x = 15 + (i % 4) * 14;
-          const y = 19 + Math.floor(i / 4) * 16 + (i % 2) * 8;
-          return <path key={i} d={`M${x} ${y - 8}l7 4v8l-7 4-7-4v-8Z`} />;
-        })}
-        {kind === 3 && Array.from({ length: 4 }, (_, i) => <path key={i} d={`M${12 + i * 12} 58L36 16L${60 - i * 12} 58 M${18 + i * 6} ${48 - i * 10}H${54 - i * 6}`} />)}
-        {kind === 4 && Array.from({ length: 16 }, (_, i) => <circle key={i} cx={18 + (i % 4) * 12} cy={18 + Math.floor(i / 4) * 12} r="6" />)}
-        {kind === 5 && <>{[9, 17, 25].map((r) => <circle key={r} cx="36" cy="36" r={r} />)}<path d="M11 36h50M36 11v50M18 18l36 36M18 54l36-36" /></>}
-      </g>
-    </svg>
-  );
-}
-
-function Templates() {
-  const labels = ["kare", "baklava", "altıgen", "üçgen", "daire", "ışın"];
-  return <>
-    <p className="panel-note">şablon seç</p>
-    <div className="template-grid">
-      {labels.map((label, i) => <div className="template-option" data-selected={i === 0} key={label}>
-        <MiniGrid kind={i} />
-        <span>{label}</span>
-        {i === 0 && <span className="selected-indicator" aria-label="seçili">✓</span>}
-      </div>)}
-    </div>
-    <p className="panel-footnote">her şekil, başka bir başlangıç.</p>
-  </>;
-}
 
 const COLOR_NAMES: Record<string, string> = {
   "#1f2230": "mürekkep", "#d9482b": "kiremit", "#f2b134": "hardal", "#2e7d6b": "yosun",
@@ -152,7 +115,7 @@ export function Panel({ activePanel, onClose }: PanelProps) {
           </button>
         </div>
         {panelTabs.map(({ id }) => <div key={id} className="panel-content" id={`panel-${id}`} role="tabpanel" aria-labelledby={`tab-${id}`} hidden={activePanel !== id}>
-          {id === "templates" ? <Templates /> : id === "colors" ? <Colors /> : <Download />}
+          {id === "templates" ? <TemplatePicker /> : id === "colors" ? <Colors /> : <Download />}
         </div>)}
       </section>
     </div>

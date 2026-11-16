@@ -30,7 +30,7 @@ button:disabled { cursor: default; }
 /* Doku tek katmanda kalır; metin ve çizgiler her zaman keskindir. */
 /* Sayfa kaymaz: masa tam ekran, defter kalan yüksekliği doldurur; kaydırma tuvalin işidir. */
 html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
-.desk { height: 100svh; display: flex; flex-direction: column; padding: 14px 62px 34px 46px; isolation: isolate; animation: desk-appear 400ms ease both; }
+.desk { height: 100svh; touch-action: pan-x pan-y; display: flex; flex-direction: column; padding: 14px 62px 34px 46px; isolation: isolate; animation: desk-appear 400ms ease both; }
 .desk::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .032; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.76' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%231f2230' filter='url(%23n)' opacity='.8' d='M0 0h180v180H0z'/%3E%3C/svg%3E"); }
 .notebook { position: relative; flex: 1; min-height: 0; border-radius: 7px; background: var(--paper); box-shadow: 0 1px 1px rgba(31,34,48,.1), 0 7px 13px -9px rgba(31,34,48,.24), 0 22px 42px -31px rgba(31,34,48,.24); isolation: isolate; animation: notebook-settle 800ms var(--ease-paper) both; }
 /* Üç ince yaprak, ağır bir gölgeye ihtiyaç duymadan derinlik verir. */
@@ -95,7 +95,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .panel-layer { position: absolute; inset: 0; z-index: 15; pointer-events: none; visibility: hidden; transition: visibility 0s 260ms; }
 .panel-layer[data-open="true"] { pointer-events: auto; visibility: visible; transition-delay: 0s; }
 .panel-backdrop { position: absolute; inset: 0; border: 0; background: transparent; padding: 0; }
-.paper-panel { position: absolute; right: 10px; top: 50%; width: 320px; min-height: 362px; padding: 31px 27px 33px 31px; background: var(--paper-shade); border: 1px solid rgba(31,34,48,.09); border-radius: 2px; opacity: 0; transform: translate(36px, -49%) rotate(1.2deg); transition: transform 260ms var(--ease-paper), opacity 200ms ease; box-shadow: -15px 12px 28px -19px rgba(31,34,48,.23), -2px 2px 5px -3px rgba(31,34,48,.22); }
+.paper-panel { position: absolute; right: 10px; top: 50%; width: 320px; min-height: 362px; max-height: calc(100% - 24px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--ink-line) transparent; padding: 31px 27px 33px 31px; background: var(--paper-shade); border: 1px solid rgba(31,34,48,.09); border-radius: 2px; opacity: 0; transform: translate(36px, -49%) rotate(1.2deg); transition: transform 260ms var(--ease-paper), opacity 200ms ease; box-shadow: -15px 12px 28px -19px rgba(31,34,48,.23), -2px 2px 5px -3px rgba(31,34,48,.22); }
 .paper-panel::before { content: ""; position: absolute; left: 8px; top: 12px; bottom: 12px; width: 1px; background: repeating-linear-gradient(to bottom, var(--ink-line) 0 2px, transparent 2px 7px); }
 .paper-panel::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; box-shadow: -14px 18px 24px -12px rgba(31,34,48,.18); opacity: 1; transition: opacity 480ms var(--ease-paper); }
 .panel-layer[data-open="true"] .paper-panel::after { opacity: 0; }
@@ -108,12 +108,20 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .panel-content { font-size: 12px; line-height: 1.7; letter-spacing: .02em; }
 /* İçeriğin display geçişi destekleyen tarayıcılarda kâğıtla birlikte kaybolmasını sağlar. */
 .panel-content { transition: display 260ms allow-discrete; }
+/* Şablon grupları: el yazısı başlık, altında üçlü ızgara. */
+.template-group + .template-group { margin-top: 18px; }
+.template-group h3 { margin: 0 0 6px; font-family: var(--font-hand), cursive; font-size: 21px; line-height: 1.2; font-weight: 500; color: var(--ink); }
 .template-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.template-option { position: relative; display: flex; flex-direction: column; align-items: center; aspect-ratio: .86; min-width: 0; padding: 5px 6px 8px; border: 1px solid var(--ink-line); border-radius: 2px; background: var(--paper); }
-.template-option > span:not(.selected-indicator) { font-size: 9px; line-height: 1.2; color: var(--ink); }
+.template-option { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; padding: 6px 6px 7px; border: 1px solid var(--ink-line); border-radius: 2px; background: var(--paper); color: var(--ink); font: inherit; cursor: pointer; transition: border-color 150ms ease; }
+.template-option:hover { border-color: var(--ink-soft); }
+.template-option > span:not(.selected-indicator) { font-size: 10px; line-height: 1.2; color: var(--ink); text-align: center; }
 .selected-indicator { position: absolute; top: 1px; right: 5px; color: var(--accent); font-size: 11px; }
-.template-option[data-selected="true"], .template-option[aria-pressed="true"] { border-color: var(--accent); }
-.mini-grid { display: block; width: 100%; height: auto; color: var(--ink-soft); }
+.template-option[aria-pressed="true"] { border-color: var(--accent); }
+.template-option:focus-visible { outline-offset: 2px; }
+/* Önizleme: şablonun gerçek hücre çizgileri; seçili olan vurgu renginde. */
+.mini-grid { display: block; width: 100%; height: auto; aspect-ratio: 1; color: var(--ink-soft); }
+.mini-grid path { fill: none; stroke: currentColor; stroke-width: .8px; }
+.template-option[aria-pressed="true"] .mini-grid { color: var(--accent); }
 .pigment-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 6px; }
 .pigment { flex-shrink: 0; display: block; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1px solid var(--ink-soft); background: var(--pigment); }
 .pigment[aria-pressed="true"] { outline: 1.5px solid var(--ink); outline-offset: 3px; }
@@ -179,13 +187,12 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   .panel-layer { position: fixed; inset: 0; z-index: 30; }
   .panel-backdrop { background: var(--ink); opacity: 0; transition: opacity 260ms ease; }
   .panel-layer[data-open="true"] .panel-backdrop { opacity: .12; }
-  .paper-panel { position: absolute; top: auto; right: 12px; left: 12px; bottom: 52px; width: auto; max-height: calc(100svh - 100px); overflow-y: auto; min-height: 320px; padding: 33px 28px 29px; border-radius: 7px 7px 2px 2px; transform: translateY(35px) rotate(.4deg); }
+  .paper-panel { position: absolute; top: auto; right: 12px; left: 12px; bottom: 52px; width: auto; max-height: calc(100svh - 132px); overflow-y: auto; min-height: 320px; padding: 33px 28px 29px; border-radius: 7px 7px 2px 2px; transform: translateY(35px) rotate(.4deg); }
   .panel-layer[data-open="true"] .paper-panel { transform: translateY(0); }
   .paper-panel::before { left: 9px; }
   .panel-handle { display: block; position: absolute; top: 12px; left: calc(50% - 16px); width: 32px; height: 3px; border-radius: 2px; background: var(--ink-line); }
   .panel-header { margin-bottom: 18px; }
-  .template-grid { max-width: 300px; margin-inline: auto; }
-  .template-option { max-height: 95px; }
+  .template-group { max-width: 300px; margin-inline: auto; }
   .pigment-row { gap: 12px; }
   .index-tab:focus-visible { outline-offset: -5px; }
 }

@@ -1,32 +1,52 @@
-import { cellsInRange } from "./grid";
+import { cellCenter, cellsInTiles, tileOf } from "./grid";
 import type { Cell, Point, Template } from "./types";
 
-export type Direction = "up" | "down" | "left" | "right";
+// Dört ok yönü ve dört çapraz. Çaprazlar gerekli: Sekizgen'in köşe üçgenleri gibi bazı hücreler her komşusunun
+// tam çaprazındadır; yalnız dört yönle hiçbir kural onlara ulaştıramaz.
+export type Direction = "up" | "down" | "left" | "right" | "upLeft" | "upRight" | "downLeft" | "downRight";
+
+const DIAGONAL = Math.SQRT1_2; // birim uzunlukta çapraz vektörün bileşeni
 
 const DIRECTION_VECTORS: Record<Direction, Point> = {
   up: [0, -1],
   down: [0, 1],
   left: [-1, 0],
   right: [1, 0],
+  upLeft: [-DIAGONAL, -DIAGONAL],
+  upRight: [DIAGONAL, -DIAGONAL],
+  downLeft: [-DIAGONAL, DIAGONAL],
+  downRight: [DIAGONAL, DIAGONAL],
 };
 
-// Köşe noktalarının ortalaması. Dışbükey hücrede her zaman hücrenin içindedir.
-export function cellCenter(cell: Cell): Point {
-  const sumX = cell.points.reduce((sum, [x]) => sum + x, 0);
-  const sumY = cell.points.reduce((sum, [, y]) => sum + y, 0);
-  return [sumX / cell.points.length, sumY / cell.points.length];
+// Köşeyi metin anahtarına çevirir; komşu hücrelerin kıl payı farklı hesaplanan ortak köşeleri aynı anahtarı alır.
+function pointKey([x, y]: Point): string {
+  return `${Math.round(x * 1e6)},${Math.round(y * 1e6)}`;
+}
+
+// İki hücre bir kenar paylaşıyor mu? En az iki ortak köşe yeterli (yalnız köşeden değenler sayılmaz).
+function sharesEdge(fromKeys: ReadonlySet<string>, cell: Cell): boolean {
+  let shared = 0;
+  for (const point of cell.points) {
+    if (fromKeys.has(pointKey(point)) && ++shared >= 2) return true;
+  }
+  return false;
 }
 
 // Ok tuşu için komşu hücre: o yönde olan hücrelerden en yakını. Yana sapma iki kat cezalandırılır,
-// böylece düz çizgide kalan hücre tercih edilir. O yönde hücre yoksa null (kenardayız).
+// böylece düz çizgide kalan hücre tercih edilir. Kenar paylaşan hücreler önce gelir: yalnız merkezlere bakınca
+// Elmas gibi şablonlarda bazı hücrelere hiç gidilemiyordu. O yönde kenar komşusu yoksa en yakın hücre seçilir;
+// o yönde hiç hücre yoksa null (sonlu listenin kenarındayız).
 export function findNeighbor(cells: readonly Cell[], fromId: string, direction: Direction): string | null {
   const from = cells.find((cell) => cell.id === fromId);
   if (!from) return null;
+  const fromKeys = new Set(from.points.map(pointKey));
   const [fx, fy] = cellCenter(from);
   const [dx, dy] = DIRECTION_VECTORS[direction];
 
   let bestId: string | null = null;
   let bestScore = Infinity;
+  let bestEdgeId: string | null = null;
+  let bestEdgeScore = Infinity;
   for (const cell of cells) {
     if (cell.id === fromId) continue;
     const [cx, cy] = cellCenter(cell);
@@ -38,17 +58,19 @@ export function findNeighbor(cells: readonly Cell[], fromId: string, direction: 
       bestScore = score;
       bestId = cell.id;
     }
+    if (score < bestEdgeScore && sharesEdge(fromKeys, cell)) {
+      bestEdgeScore = score;
+      bestEdgeId = cell.id;
+    }
   }
-  return bestId;
+  return bestEdgeId ?? bestId;
 }
 
-// Sınırsız ızgarada ok tuşu komşusu: hücrenin karesi ve çevresindeki 8 kare aranır.
-// Komşu her zaman bu 3×3 alanın içindedir, çünkü hücreler karelerinden taşmaz.
+// Sınırsız ızgarada ok tuşu komşusu: hücrenin merkezinin karosu ve çevresindeki 8 karo aranır.
+// Hücreler karolarından en fazla bir karo taştığından en yakın komşular bu 3×3 alandadır.
 export function findNeighborCell(template: Template, cell: Cell, direction: Direction): Cell | null {
-  const [cx, cy] = cellCenter(cell);
-  const x = Math.floor(cx);
-  const y = Math.floor(cy);
-  const candidates = cellsInRange(template, { left: x - 1, top: y - 1, right: x + 2, bottom: y + 2 });
+  const { col, row } = tileOf(template, cellCenter(cell));
+  const candidates = cellsInTiles(template, { left: col - 1, top: row - 1, right: col + 2, bottom: row + 2 });
   const nextId = findNeighbor(candidates, cell.id, direction);
   return candidates.find((candidate) => candidate.id === nextId) ?? null;
 }

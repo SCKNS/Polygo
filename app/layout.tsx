@@ -12,5 +12,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="tr"><body className={`${handwriting.variable} ${interfaceFont.variable}`}>{children}</body></html>;
+  return <html lang="tr" suppressHydrationWarning><body className={`${handwriting.variable} ${interfaceFont.variable}`}>{children}</body></html>;
 }

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { cellAt, cellsInRange, toPointsAttribute, type Cell, type Template } from "@/lib/templates";
-import { cellCenter, findNeighborCell, type Direction } from "@/lib/templates/neighbors";
+import {
+  cellAt, cellCenter, cellsInView, outlinePath, type Cell, type Template,
+} from "@/lib/templates";
+import { findNeighborCell, type Direction } from "@/lib/templates/neighbors";
 import { usePaintStore } from "@/lib/paintStore";
 import { useViewStore } from "@/lib/viewStore";
 import {
@@ -22,11 +24,17 @@ const FOCUS_MARGIN_PX = 48;
 // Teker satır cinsinden kaydırırsa (Firefox) satır başına piksel.
 const LINE_HEIGHT_PX = 16;
 
+// Ok tuşları ve çaprazlar. Çapraz tuşlar sayısal tuş takımının düzenidir (7 Home ↖, 9 PageUp ↗, 1 End ↙, 3 PageDown ↘);
+// bazı şablonlarda (Sekizgen, Daire...) köşe parçalarına yalnız çaprazdan gidilir.
 const ARROW_KEYS: Record<string, Direction> = {
   ArrowUp: "up",
   ArrowDown: "down",
   ArrowLeft: "left",
   ArrowRight: "right",
+  Home: "upLeft",
+  PageUp: "upRight",
+  End: "downLeft",
+  PageDown: "downRight",
 };
 
 function midpoint(a: ScreenPoint, b: ScreenPoint): ScreenPoint {
@@ -35,11 +43,6 @@ function midpoint(a: ScreenPoint, b: ScreenPoint): ScreenPoint {
 
 function distance(a: ScreenPoint, b: ScreenPoint): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-// Bütün hücre kenarları tek bir yol: binlerce ayrı öğe yerine tek öğe, ortak kenarlar iki kez çizilse de koyulaşmaz.
-function linesPath(cells: readonly Cell[]): string {
-  return cells.map((cell) => "M" + cell.points.map(([x, y]) => `${x} ${y}`).join("L") + "Z").join("");
 }
 
 // Boşluk tuşunun kendi işi olan öğeler (düğme, yazı alanı...): orada Boşluk kaydırma aracı olmaz.
@@ -59,7 +62,10 @@ export function Canvas({ template }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   // Ölçülene dek (sunucuda ve ilk çizimde) boyut bilinmez; o sırada hücre çizilmez.
   const [size, setSize] = useState<Size | null>(null);
-  const [focusedCell, setFocusedCell] = useState<Cell | null>(null);
+  // Klavyeyle seçilen hücre, seçildiği şablonla birlikte: şablon değişince eski seçim geçersizdir
+  // (aynı id başka şablonda başka bir hücre olabilir).
+  const [focusedCell, setFocused] = useState<{ template: Template; cell: Cell } | null>(null);
+  const setFocusedCell = (cell: Cell) => setFocused({ template, cell });
   // Ekrana değen parmaklar/fare: pointerId -> son konum (tuvale göre).
   const pointers = useRef(new Map<number, ScreenPoint>());
   // İki parmak hareketi sürerken: başlangıç mesafesi ve yakınlaştırması. Tüm parmaklar kalkana dek boyama yapılmaz.
@@ -97,9 +103,30 @@ export function Canvas({ template }: CanvasProps) {
     }
     svg.addEventListener("wheel", handleWheel, { passive: false });
 
-    // Boşluk basılıyken fareyle sürüklemek kaydırır. Odak bir düğme ya da yazı alanındaysa Boşluk onlarındır.
+    // Tuval dışında (ada, ayraçlar, kenar boşluğu) yapılan sıkıştırma tarayıcıya kalırsa bütün sayfa büyür ve kayar:
+    // ada ve spiral ekrandan çıkar. Ctrl/Cmd + teker sayfanın her yerinde engellenir; yakınlaştırma yalnız tuvalindir.
+    function blockPageZoom(event: WheelEvent) {
+      if (event.ctrlKey || event.metaKey) event.preventDefault();
+    }
+    window.addEventListener("wheel", blockPageZoom, { passive: false });
+
+    // Son etkileşim fare/dokunma mıydı? Fareyle tıklanan düğme (ya da panel kapanınca odağın döndüğü ayraç) odağı tutar;
+    // o durumda Boşluk düğmeye değil kaydırmaya gitmeli. Klavyeyle (Tab) gelinen düğmede Boşluk düğmeye basar.
+    let lastInputWasPointer = false;
+    function rememberPointer() {
+      lastInputWasPointer = true;
+    }
+
+    // Boşluk basılıyken fareyle sürüklemek kaydırır. Odak yazı alanındaysa ya da klavyeyle gelinen bir düğmedeyse Boşluk onlarındır.
     function handleSpaceDown(event: globalThis.KeyboardEvent) {
-      if (event.key !== " " || isControl(event.target)) return;
+      if (event.key !== " ") {
+        lastInputWasPointer = false;
+        return;
+      }
+      if (isControl(event.target)) {
+        if (!lastInputWasPointer || !(event.target instanceof HTMLButtonElement)) return;
+        event.target.blur(); // fareyle odaklanmış düğme: Boşluk onu tetiklemesin, el aracı olsun
+      }
       event.preventDefault(); // sayfa kaymasın
       if (spaceHeld.current) return; // basılı tutunca gelen tekrarlar
       spaceHeld.current = true;
@@ -113,6 +140,7 @@ export function Canvas({ template }: CanvasProps) {
     function handleSpaceUp(event: globalThis.KeyboardEvent) {
       if (event.key === " ") releaseSpace();
     }
+    window.addEventListener("pointerdown", rememberPointer, true);
     window.addEventListener("keydown", handleSpaceDown);
     window.addEventListener("keyup", handleSpaceUp);
     window.addEventListener("blur", releaseSpace); // pencere değişince tuş bırakılmış sayılır
@@ -120,6 +148,8 @@ export function Canvas({ template }: CanvasProps) {
     return () => {
       observer.disconnect();
       svg.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("wheel", blockPageZoom);
+      window.removeEventListener("pointerdown", rememberPointer, true);
       window.removeEventListener("keydown", handleSpaceDown);
       window.removeEventListener("keyup", handleSpaceUp);
       window.removeEventListener("blur", releaseSpace);
@@ -129,14 +159,14 @@ export function Canvas({ template }: CanvasProps) {
   // Görünen kareler RANGE_CHUNK katlarına yuvarlandığından, kaydırırken liste yalnız aralık değişince yeniden üretilir.
   const { left, top, right, bottom } = size ? visibleRange(camera, size) : { left: 0, top: 0, right: 0, bottom: 0 };
   const cells = useMemo(
-    () => cellsInRange(template, { left, top, right, bottom }),
+    () => cellsInView(template, { left, top, right, bottom }),
     [template, left, top, right, bottom],
   );
-  const lines = useMemo(() => linesPath(cells), [cells]);
+  const lines = useMemo(() => outlinePath(cells), [cells]);
   const paintedCells = useMemo(() => cells.filter((cell) => fills[cell.id]), [cells, fills]);
 
   // Kullanıcı henüz hücre seçmediyse klavye odağı ekranın ortasındaki hücrededir.
-  const focused = focusedCell ?? cellAt(template, [camera.x, camera.y]);
+  const focused = focusedCell?.template === template ? focusedCell.cell : cellAt(template, [camera.x, camera.y]);
   const paintedCount = Object.keys(fills).length;
 
   function localPoint(event: PointerEvent<SVGSVGElement>): ScreenPoint {
@@ -305,20 +335,20 @@ export function Canvas({ template }: CanvasProps) {
       <svg ref={svgRef} className="drawing-canvas" viewBox={size ? toViewBox(camera, size) : undefined}
         preserveAspectRatio="none"
         tabIndex={0} role="application" aria-roledescription="çizim tuvali"
-        aria-label={`${template.name} şablonu, sınırsız ızgara: ${paintedCount} boyalı hücre. Ok tuşlarıyla hücre seç, Enter ya da Boşluk ile boya; aynı renge tekrar basmak siler. Artı ve eksi yakınlaştırır. Boşluğu basılı tutup fareyle sürüklemek kaydırır.`}
+        aria-label={`${template.name} şablonu, sınırsız ızgara: ${paintedCount} boyalı hücre. Ok tuşlarıyla hücre seç (çapraz için Home, Page Up, End, Page Down), Enter ya da Boşluk ile boya; aynı renge tekrar basmak siler. Artı ve eksi yakınlaştırır. Boşluğu basılı tutup fareyle sürüklemek kaydırır.`}
         onPointerDown={handlePointerDown} onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} onLostPointerCapture={handleLostCapture}
         onKeyDown={handleKeyDown} onKeyUp={handleKeyUp}>
         {/* Yalnız boyalı hücreler çizilir; boş hücre şeffaftır ve hangi hücreye dokunulduğu geometriyle bulunur. */}
         <g className="canvas-cells">
           {paintedCells.map((cell) => (
-            <polygon key={cell.id} data-cell-id={cell.id} points={toPointsAttribute(cell.points)} style={{ fill: fills[cell.id] }} />
+            <path key={cell.id} data-cell-id={cell.id} d={cell.d} style={{ fill: fills[cell.id] }} />
           ))}
         </g>
         <path className="canvas-lines" d={lines} vectorEffect="non-scaling-stroke" aria-hidden="true" />
         {/* Klavye odağı: yalnız tuval klavyeyle odaklanınca görünür (CSS). */}
         {focused && (
-          <polygon className="cell-focus" points={toPointsAttribute(focused.points)} vectorEffect="non-scaling-stroke" />
+          <path className="cell-focus" d={focused.d} vectorEffect="non-scaling-stroke" />
         )}
       </svg>
       <p className="sr-only" aria-live="polite">

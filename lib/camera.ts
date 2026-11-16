@@ -1,4 +1,4 @@
-import type { Point, SquareRange } from "./templates";
+import type { Point, WorldRange } from "./templates";
 
 // Kamera: ekranın ortasındaki dünya noktası (x, y; birim = bir kare kenarı) ve yakınlaştırma.
 // Yakınlaştırma 1 iken bir kare UNIT_PX piksel görünür.
@@ -53,7 +53,7 @@ export function panCamera(camera: Camera, dx: number, dy: number): Camera {
 }
 
 // Ekranda görünen (kısmen de olsa) kareleri kapsayan aralık, RANGE_CHUNK katlarına genişletilmiş.
-export function visibleRange(camera: Camera, size: Size): SquareRange {
+export function visibleRange(camera: Camera, size: Size): WorldRange {
   const [left, top] = toWorld(camera, size, { x: 0, y: 0 });
   const [right, bottom] = toWorld(camera, size, { x: size.width, y: size.height });
   return {

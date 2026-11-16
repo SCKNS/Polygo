@@ -1,218 +1,97 @@
-# İnceleme: Adım 4 — tam sayfa sonsuz ızgara ve araç adası
+# İnceleme: Adım 4 düzeltmesi — Boşluk + sürükle ile kaydırma, kahverengi cam ada
 
 ## Amaç
-- Defter sayfasının içinde yalnız ızgara kalsın: ızgara sayfayı kenardan kenara doldursun ve her yöne sınırsız olsun.
-- Kaydırma ve yakınlaştırma: masaüstünde teker ve sürükleme, mobilde iki parmak.
-- Hücre id'leri dünya koordinatı olarak kalsın (`x-y`, `x-y-a`, `x-y-top` …); negatif koordinatlar da geçerli.
-- Kullanıcı kararı (adım başında soruldu): logo ve araçlar "masaüstü ama dynamic island şeklinde". Defterin üstünde, masada
-  ortalanmış koyu hap biçiminde bir çubuk oldu.
+Adım 4 (sonsuz ızgara) commit'inden sonra kullanıcı iki şey istedi:
+1. Masaüstünde fareyle sağa/sola kaydırma: "normal uygulamalardaki gibi klavyede bir şeye basıp mouse ile kaydırma".
+   Çizim programlarındaki yaygın kalıp seçildi: **Boşluk basılı + sol tuşla sürükle** (el aracı).
+2. Ada (dynamic island) siyah olmasın; defter tonlarında kahverengi, "liquid glass" görünümünde olsun.
+
+Kullanıcının üçüncü notu ("şablonlar seçilemiyor") bu düzeltmeye **dahil edilmedi**: şablon seçimi planda Adım 5,
+oturum kuralı tek adım. Panel hâlâ yer tutucu; Adım 5'te yapılacak.
 
 ## Değişiklikler
-**Şablon modeli (`lib/templates/`)**
-- `types.ts`: `Template` artık `width/height/cells` taşımıyor; `cellsInSquare(x, y)` taşıyor, yani tekrar eden desen.
-- `builders.ts`: builder'lar tek kareyi üretiyor (`squareCells(x, y)` …). id biçimi değişmedi.
-- `grid.ts` (yeni):
-  - `cellsInRange(template, range)`: aralıktaki hücreler; sağ ve alt kenar dahil değil.
-  - `containsPoint`: dışbükey çokgende nokta testi; kenar dahil.
-  - `cellAt(template, point)`: yalnız noktanın karesine bakar.
-- `neighbors.ts`: `findNeighborCell` eklendi. Sınırsız ızgarada ok tuşu komşusunu hücrenin 3×3 kare çevresinde arar. Eski `findNeighbor` aynen duruyor.
-- `index.ts`: `TEMPLATES` artık `cellsInSquare` veriyor; `cellAt`, `cellsInRange` ve `SquareRange` dışa aktarılıyor.
-
-**Kamera (`lib/camera.ts`, `lib/viewStore.ts`, yeni)**
-- Kamera = ekranın ortasındaki dünya noktası + yakınlaştırma. %100'de bir kare 40 px; aralık %100–%400, adım ×1.5.
-- Saf fonksiyonlar: `toWorld`, `toScreen`, `zoomCamera(from → to)`, `panCamera`, `visibleRange`, `toViewBox`, `clampZoom`.
-- `visibleRange` aralığı 4 karenin katlarına yuvarlar. Böylece kaydırırken hücre listesi her karede değil, ara sıra yeniden üretilir.
-- `useViewStore` (Zustand): `camera`, `setCamera`, `zoomTo`. Tuval ve adadaki yakınlaştırma düğmeleri aynı kamerayı kullanır.
-
-**Tuval (`components/Canvas.tsx`, baştan yazıldı)**
-- SVG sayfayı doldurur; `viewBox` kameradan hesaplanır, boyut `ResizeObserver` ile ölçülür.
-- Izgara çizgileri görünen hücrelerin kenarlarından tek bir `<path>` olarak çizilir. Yalnız boyalı hücreler `<polygon data-cell-id>` olarak çizilir.
-- Dokunulan hücre artık `document.elementFromPoint` ile değil, `cellAt(toWorld(...))` ile bulunur.
-  Hızlı sürüklemede aradaki noktalar 3 px aralıkla taranır (Adım 3'teki gibi).
-- Girdiler:
-  - Sol tuş / tek parmak: boyar.
-  - Orta tuşla sürükleme: kaydırır.
-  - Teker: dikey kaydırır; Shift + teker yatay kaydırır.
-  - Ctrl/Cmd + teker: imleç çevresinde yakınlaştırır.
-  - İki parmak: yakınlaştırır ve kaydırır.
-  - Teker dinleyicisi `passive: false` ile elle eklendi; React'in `onWheel`'i sayfa kaymasını engelleyemiyor.
-- Klavye:
-  - Ok tuşları seçili hücreyi sınırsız ızgarada gezdirir; hücre kenara 48 px'ten fazla yaklaşırsa görüş onu ortalar.
-  - Enter ya da Boşluk boyar.
-  - +/− yakınlaştırır.
-  - Henüz seçim yoksa klavye odağı ekranın ortasındaki hücrededir.
-- `pointercancel`, `lostpointercapture` ve iki parmakla gelen fırça iptali Adım 3'teki gibi korundu.
-
-**Düzen**
-- `components/Island.tsx` (yeni): logo, ayırıcı, araçlar (geri al, yinele, temizle, renk), ayırıcı, yakınlaştırma.
-- `components/ZoomControls.tsx`: prop almıyor, kamerayı depodan okuyor. % düğmesi "başa döndür" oldu, metni güncellendi.
-- `components/Notebook.tsx`: başlık, sayfa altı yazıları, tuval altı notu ve dekoratif kağıt ızgarası kaldırıldı.
-  Sayfada `page-canvas`, spiral, ayraçlar ve panel kaldı.
-- `app/globals.css`:
-  - Masa tam ekran bir flex sütunu; `html, body` kaymıyor.
-  - Defter kalan yüksekliği dolduruyor.
-  - Ada stilleri: koyu mürekkep zemin, krem simgeler, pasif öğeler için `--island-muted`. Açılışta ortadan iki yana açılıyor; `backwards` modunda, yani bitince kırpma kalkıyor.
-  - Seçili renk dairesine krem halka eklendi; mürekkep rengi koyu adada da görünüyor.
-  - Mobilde adada yalnız logo işareti var, ≤420 px'te % göstergesi gizli.
-  - Kullanılmayan kurallar silindi.
-
-**Testler ve betik**
-- `templates.test.ts`:
-  - Geometri, negatif koordinatları da içeren 6×4'lük bir bölgede denetleniyor: dışbükeylik, örtüşme yok, alan toplamı.
-  - Yeni madde: her hücre kendi karesinin içinde.
-  - Kare başına hücre sayısı (`EXPECTED_CELLS_PER_SQUARE`) ve id'lerin kare koordinatıyla başladığı da sınanıyor.
-- `grid.test.ts` (yeni):
-  - `containsPoint` için iç, kenar, köşe ve dış noktalar.
-  - `cellsInRange`: aralık sınırı ve boş aralık.
-  - `cellAt`: her şablonda her hücrenin merkezi, negatif koordinatlar, kenardaki nokta.
-- `camera.test.ts` (yeni): dönüşümlerin tersinirliği; yakınlaştırmada imlecin altındaki noktanın yerinde kalması; from→to kaydırma; görünür aralığın ekranı kapsaması; viewBox.
-- `neighbors.test.ts`: sonlu liste testleri 8×8'lik parçada sürüyor. Sınırsız ızgara için eklenenler: 0-0'dan sola `-1-0`, yukarı `0--1`; her şablonda her hücrenin dört yönde de komşusu var.
-- `scripts/verify-paint.mjs` yeni modele göre yeniden yazıldı: hücre geometrisini id'den hesaplıyor (aşağıdaki kontrol listesi).
+- `components/Canvas.tsx`
+  - Pencereye `keydown`/`keyup`/`blur` dinleyicileri: Boşluk basılıyken `spaceHeld` true, SVG'ye `data-space` (imleç: el).
+    Odak düğme / input / textarea / select / contenteditable içindeyse Boşluk dokunulmaz (`isControl`), o öğenin işi kalır.
+    Diğer durumlarda `preventDefault` (sayfa kaymasın); tuş tekrarı yok sayılır; pencere odağı kaybedince bırakılmış sayılır.
+  - `handlePointerDown`: orta tuşa ek olarak, Boşluk basılıyken sol tuş da kaydırma başlatır (mevcut `panning` yolu kullanılır).
+  - Klavyeyle boyama: Enter `keydown`'da boyar (değişmedi). Boşluk artık `keyup`'ta boyar ve basılıyken fareyle kaydırma
+    yapıldıysa boyamaz (`spaceUsedForPan`). Ortak kısım `paintFocused()` fonksiyonuna alındı.
+  - `aria-label`'a "Boşluğu basılı tutup fareyle sürüklemek kaydırır" eklendi.
+- `app/globals.css`
+  - `.island`: düz `var(--ink)` yerine iki katmanlı gradyan (üstte ince ışık + kahverengi yarı saydam gövde),
+    `backdrop-filter: blur(14px) saturate(160%)`, ince açık kenar, iç üst ışık / iç alt gölge, kahve tonlu gölge.
+    Yeni değişkenler: `--island-glass`, `--island-glass-deep`. `--island-muted` 0.32 → 0.4 (kahve zeminde pasif öğeler okunsun).
+  - `.drawing-canvas[data-space] { cursor: grab; }` (sürüklerken mevcut `grabbing`).
+- `docs/PROGRESS.md`: durum, kamera notu, ada notu, şablon seçimi notu.
+- `docs/screenshots/step4fix-desktop.png`, `docs/screenshots/step4fix-mobile.png` (yeni).
 
 ## Komutlar ve gerçek çıktılar
-`npm run lint`
+`npm run lint`:
 ```
 > polygo@0.1.0 lint
 > eslint .
 ```
-(uyarı/hata yok)
+(hata/uyarı yok)
 
-`npm test` (`C:\Users\sec\Desktop\polygo` yolundan)
+`npm test` (C:\ yolundan):
 ```
  Test Files  5 passed (5)
       Tests  62 passed (62)
 ```
 
-`npm run build`
+`npm run build`:
 ```
-▲ Next.js 16.4.6 (Turbopack)
-✓ Compiled successfully in 809ms
-  Finished TypeScript in 1291ms ...
-✓ Generating static pages using 4 workers (3/3) in 704ms
+✓ Generating static pages using 4 workers (3/3) in 733ms
 Route (app)
 ┌ ○ /
 └ ○ /_not-found
+○  (Static)  prerendered as static content
 ```
 
-Tarayıcı doğrulaması: `node scripts/verify-paint.mjs square docs/screenshots`. Kurulum: üretim sunucusu `-p 3123`, Chrome headless; masaüstü 1280×800 fare, mobil 375×812 dokunma emülasyonu.
+Tarayıcı (üretim sunucusu :3123, headless Chrome, CDP ile gerçek klavye + fare olayları; betik depoya eklenmedi):
 ```
-OK   sayfa kaymaz (tuval ekranı doldurur) — taşma 0px
-OK   ada defterin dışında, üstünde — ada alt 68, defter üst 84
-OK   ızgara sayfayı kenardan kenara doldurur — defter çocukları: page-canvas | spiral | index-tabs | panel-layer
-OK   tık tek hücre boyar — ["0-0"]
-OK   sürükleme hücreleri boyar — 5 boyalı
-OK   adadaki geri al sürüklemeyi tek adımda geri alır
-OK   adadaki yinele geri getirir
-OK   hızlı sürükleme aradaki kareleri atlamaz (negatif x dahil) — boş kalan sütunlar: []
-OK   teker dikey kaydırır — Δy 200.0
-OK   Shift + teker yatay kaydırır — Δx 300.0
-OK   Ctrl + teker imleç çevresinde yakınlaştırır — 100% → 182%, hücre kayması 0.00px
-OK   % düğmesi %100'e döndürür
-OK   orta tuşla sürükleme kaydırır, boyamaz — Δ (150.0, 100.0)
-OK   uzakta (sınırsız ızgarada) boyanır — 129-3, görünen boyalı: ["129-3"]
-OK   geri dönünce eski boyama yerinde
-OK   negatif koordinatlı hücre seçilen renkle boyanır — -3--2: rgb(217, 72, 43)
-OK   aynı renge tekrar tık siler
-OK   temizle boşaltır
-OK   Ctrl+Z temizlemeyi geri alır
-OK   klavye: 30 kez sol ok + Enter, ekran dışına çıkan hücreyi boyar ve görüş onu izler — ["-30-0"]
-OK   adadaki + yakınlaştırır — 150%
-OK   mobil: ada ekrana sığar, yatay taşma yok — ada 26–350px, genişlik 324px
-OK   mobil: adadaki düğmeler ≥44px — 6 düğme, en küçük 44px
-OK   dokunma iptali fırçayı geri alır, geçmişe yazmaz — boyalı: 0, geri al kapalı: true
-OK   iptalden sonraki dokunuş normal boyar
-375px, 100%: en küçük iç teğet daire çapı 40.0px
-  + (1) → 150%: en küçük iç teğet daire çapı 60.0px
-OK   yakınlaştırınca her hücrede ≥44px çaplı daire sığar — 1 dokunuş, 150%
-OK   dokunuş yalnız hedef hücreyi boyar (komşu boyanmaz) — 27 isabet / 27 dokunuş, 3 hücre
-OK   tek parmak sürükleme boyar — ["-1--1","-1--2","-2--1"]
-OK   iki parmak yakınlaştırır ve boyamaz — 100% → 400%
-OK   iki parmakla birlikte sürükleme kaydırır, boyamaz — Δy 120.0
-OK   mobil: Renkler ayracı paneli açar
-OK   kaydırılmış panelde aşağı çekmek paneli kapatmaz — kaydırılabilir: 60px, açık: true
-OK   panel en üstteyken aşağı çekmek kapatır
-SONUÇ: tüm kontroller geçti
+cursor while space: grab
+space+drag viewBox -14.65 -8.525 29.3 17.05 -> -9.65 -6.025 29.3 17.05 OK moved
+space+drag painted 0 -> 0 OK
+plain drag painted 0 -> 3 OK OK cam same
+island: linear-gradient(rgba(255, 240, 220, 0.16) 0%, rgba(255, 240, 220, 0) 46%), linea | blur(14px) saturate(1.6)
 ```
-Dörtlü şablonu: `Notebook.tsx` geçici olarak `getTemplate("cross")` yapıldı, derlendi ve `node scripts/verify-paint.mjs cross docs/screenshots` çalıştırıldı. Sonra dosya geri alındı ve yeniden derlendi; diff'te varsayılan şablon `DEFAULT_TEMPLATE`. Sonuç: tüm kontroller geçti. Farklı satırlar:
-```
-OK   Ctrl + teker imleç çevresinde yakınlaştırır — 100% → 182%, hücre kayması 0.23px
-OK   klavye: 30 kez sol ok + Enter, ekran dışına çıkan hücreyi boyar ve görüş onu izler — ["-17-0-left"]
-375px, 100%: en küçük iç teğet daire çapı 16.6px
-  + (1) → 150%: en küçük iç teğet daire çapı 24.9px
-  + (2) → 225%: en küçük iç teğet daire çapı 37.3px
-  + (3) → 338%: en küçük iç teğet daire çapı 56.0px
-OK   yakınlaştırınca her hücrede ≥44px çaplı daire sığar — 3 dokunuş, 338%
-OK   dokunuş yalnız hedef hücreyi boyar (komşu boyanmaz) — 108 isabet / 108 dokunuş, 12 hücre
-SONUÇ: tüm kontroller geçti
-```
-Dürüstlük notu: Dörtlü'nün ilk koşusunda isabet kontrolü HATA verdi (81/108). Iskalayan 27 dokunuşun hepsi `-2--1` karesindeydi ve hiçbiri bir şey boyamadı. Nedeni: %338'de kare 135 px olduğu için bu kare 375 px ekranın soluna taşıyordu, yani dokunuşlar ekran dışına gidiyordu. Betik düzeltildi: hedefler ortadaki kare ile altı/üstü arasından seçiliyor ve ekran dışındakiler eleniyor. Uygulama kodu değişmedi.
+Yani: Boşluk + 200×100 px sürükleme kamerayı 5×2.5 kare kaydırdı (%100'de 40px/kare) ve hiçbir hücre boyanmadı;
+Boşluk bırakılınca da boyama olmadı. Boşluksuz sürükleme 3 hücre boyadı, kamera yerinde kaldı.
 
 ## Ekran görüntüleri
-- Masaüstü 1280×800:
-  - `docs/screenshots/step4-square-desktop-empty.png`
-  - `docs/screenshots/step4-square-desktop-painted.png`
-  - `docs/screenshots/step4-square-desktop-far.png` (129. sütunda boyama)
-  - `docs/screenshots/step4-cross-desktop-painted.png`
-- Mobil 375×812:
-  - `docs/screenshots/step4-square-mobile-empty.png`
-  - `docs/screenshots/step4-square-mobile-zoomed-painted.png`
-  - `docs/screenshots/step4-square-mobile-colors.png`
-  - `docs/screenshots/step4-cross-mobile-*.png`
-- Görüntülere tek tek bakıldı:
-  - Ada masada, defterin üstünde ortada; mobilde spiral tellerinden ayrı.
-  - Izgara sayfayı kenardan kenara dolduruyor.
-  - Boyalı üçgenler doğru yerde.
-  - Mobil renk panelinde mürekkep rengi adada krem halkayla görünüyor.
-- Masaüstü görüntülerinde Renkler ayracındaki kırmızı çerçeve odak halkası: Escape ile panel kapanınca odak ayraca dönüyor. Beklenen davranış.
+- Masaüstü 1280px: `docs/screenshots/step4fix-desktop.png` — ada kahverengi cam, krem metin/ikonlar okunuyor.
+- Mobil 375px: `docs/screenshots/step4fix-mobile.png` — ada aynı görünümde, spiral ve alt ayraçlar değişmedi.
 
 ## İddialar
-1. Defter sayfasının içinde yalnız ızgara var; logo, araçlar ve yakınlaştırma sayfanın dışında, masadaki adada.
-2. Izgara her yöne sınırsız. 129. sütunda ve negatif koordinatlarda boyama çalışıyor, id'ler dünya koordinatı.
-3. Ekranda yalnız görünen alanın hücreleri üretiliyor. DOM'da tek bir çizgi yolu ve yalnız boyalı hücreler var.
-4. Kaydırma ve yakınlaştırma çalışıyor:
-   - Teker, Shift + teker, Ctrl + teker (imleç sabit kalıyor), orta tuşla sürükleme.
-   - Mobilde iki parmakla yakınlaştırma ve kaydırma; bunlar boyamıyor.
-5. Adım 3 davranışları korundu:
-   - Tek fırça = tek geri alma adımı; aynı renge dokunmak siler.
-   - Hızlı sürüklemede kare atlanmıyor.
-   - pointercancel yarım fırçayı geri alıyor.
-   - Mobil panelin kaydırma ve kapatma davranışı aynı.
-6. Klavye: ok tuşlarıyla ızgaranın sınırı olmadan gezilebiliyor, görüş seçili hücreyi izliyor.
-7. Mobilde ada 375 px'e sığıyor ve görünen bütün düğmeleri ≥44 px.
-8. Build, lint ve test temiz.
+1. Boşluk basılıyken sol tuşla sürüklemek tuvali kaydırır, boyamaz (tarayıcıda ölçüldü).
+2. Boşluk basılıyken imleç el (grab) olur (computed style ölçüldü).
+3. Normal sürükleme eskisi gibi boyar (ölçüldü).
+4. Ada artık siyah değil; kahverengi yarı saydam cam (computed style + ekran görüntüsü).
+5. Lint, test, build temiz.
 
-## Şüpheler / riskler
-- **En küçük yakınlaştırma %100.** Bir kare 40 px olduğundan 1280 px ekranda yaklaşık 28×17 kare görünüyor. Bundan büyük bir logo tek bakışta görülemez. Daha çok uzaklaşmak, 4K ekranda Dörtlü'de on binlerce hücre ve çok büyük bir çizgi yolu demek. Bunun çözümü (ör. uzakta çizgileri `<pattern>` ile çizmek) sonraya bırakıldı.
-- **Mobilde Dörtlü için 3 dokunuş gerekiyor** (%338). Adım 3'te 2'ydi: o zaman 8×8 tuval ekranı dolduruyordu, şimdi kare sabit 40 px. Gerçek telefonda denenmedi.
-- **Chrome'da tıklama yutuluyor.** İki parmakla kaydırmadan ~100 ms içinde gelen dokunuşun `click` olayını Chrome yutuyor (emülasyonda ölçüldü). Ayraç ve düğmeler bu kısa sürede tepki vermeyebilir. Boyama `pointerdown` kullandığı için etkilenmiyor. Doğrulama betiğine 1 sn bekleme eklendi.
-- **Dörtlü'de Ctrl + teker sonrası 0.23 px kayma.** Kare şablonunda 0.00 px. Hesap testte tam (`camera.test.ts`); farkın tarayıcının piksel yuvarlamasından geldiğini düşünüyorum, kanıtlamadım.
-- **Fare girdileri:** Orta tuşu olmayan fareyle sürükleyerek kaydırma yok; teker ve dokunmatik yüzey var. Boşluk + sürükleme eklenmedi, çünkü Boşluk tuvalde "boya" tuşu.
-- **Klavyeyle kaydırma:** Yalnız seçili hücreyi hareket ettirerek yapılabiliyor.
-- **Odaktaki hücre:** Kullanıcı hiç hücre seçmediyse klavye odağı ekranın ortasındaki hücre. Kaydırınca bu hücre de değişiyor; ekran okuyucu her kaydırmada yeni hücreyi okuyabilir (`aria-live`).
-- **Gerçek cihaz:** Safari/iOS'ta iki parmak hareketi ve `touch-action: none` gerçek cihazda denenmedi. Sayfa yakınlaşması (pinch-zoom) tuval dışında, örneğin adada hâlâ mümkün.
-- **İlk çizim:** `ResizeObserver` boyutu ölçene kadar ilk karede tuval boş çiziliyor (bir kare süresi).
-- **Uzaktaki boyamalar:** Ekran dışındaki boyalı hücreler DOM'da yok. Tuvalin `aria-label`'ındaki boyalı sayısı depodan geldiği için doğru. Doğrulama betiğindeki `__fills()` ise yalnız görünenleri sayıyor; betikteki kontroller buna göre yazıldı.
-- **id biçimi:** Negatif koordinatlı id'ler (`-1--2`) çirkin ama tek anlamlı. Kayıt adımında (Adım 7) bu biçim saklanacak.
-- **Kaldırılan yazılar:** Sayfa altı yazıları ("küçük şekiller, kendine ait bir iz.", "01 / çizim defteri") ve tuval altı notu kaldırıldı. Kullanıcı bunları "sayfanın içinden kalkar" kararıyla kaldırdı; adaya taşınmadı.
-- **Ada rengi:** Koyu mürekkep (#1f2230). Vurgu rengi değil, ama sayfada en baskın koyu öğe bu oldu.
-- **Yerel ortam sorunu (kodla ilgili değil):** Doğrulama sırasında 3123 portunda daha önce başlatılmış bir `next start` çalışıyordu. Yeni build onun altındaki `.next`'i değiştirdi ve sayfa stilsiz geldi. Süreç durdurulup yeniden başlatıldı; PROGRESS.md'ye not düşüldü.
+## Şüpheler
+- **Boşlukla klavye boyaması davranışı değişti:** önceden `keydown`'da boyuyordu, şimdi `keyup`'ta. Tuşu basılı tutmak artık
+  tekrar tekrar boyamaz/silmez (önceden tekrar olayları aç-kapa yapabiliyordu; bu daha iyi ama farklı). Doğrudan ölçülmedi.
+- `handleKeyUp` (React) ile pencere `keyup` dinleyicisinin sırasına güveniliyor: React kök kapsayıcıda dinlediği için
+  pencere dinleyicisinden önce çalışır. Bu React'in bilinen davranışı ama örtük bir bağımlılık; yorumda belirtildi.
+- Boşluk basılıyken fare tuvalin dışından gelirse ya da tuşa ada düğmesi odaklıyken basılırsa kaydırma olmaz (bilinçli: düğme Boşluğu kullanır).
+  Kullanıcı ada düğmesine tıklayıp sonra Boşluk+sürükle denerse çalışmadığını düşünebilir. Tıklanan düğmeden odak kalkmıyor.
+- `backdrop-filter`'ın etkisi az görünür: ada masanın düz renginin üstünde duruyor, arkasında bulanacak bir şey yok.
+  "Liquid glass" hissi esas olarak gradyan + iç ışık çizgisiyle veriliyor. Kullanıcı daha belirgin cam isterse ada sayfanın üstüne bindirilebilir.
+- Kahve zemin üzerindeki pasif (disabled) öğeler kasıtlı olarak soluk; kontrastları WCAG eşiğinin altında (pasif öğeler muaf).
+  Etkin krem (#f7f2e8) metin ile ada gövdesi (~#5a3f2b) arası kontrast yüksek, ama tam değer ölçülmedi (yarı saydamlık nedeniyle).
+- Mobilde Boşluk yok; kaydırma eskisi gibi iki parmakla. Gerçek telefonda denenmedi.
+- Hover ve gerçek fare hissi yalnız CDP olaylarıyla denendi, elle denenmedi.
 
 ## Karar notları
-- **Hücre seçimi:** Dokunulan hücre DOM yerine geometriyle bulunuyor. Sınırsız ızgarada binlerce görünmez çokgen çizmek yerine yalnız boyalılar çiziliyor. `cellAt` saf bir fonksiyon, bu yüzden test edilebiliyor.
-- **Kamera:** Ekran ortası + yakınlaştırma tutuluyor. Düğmeyle yakınlaştırmada merkez sabit kaldığı için ada, tuvalin boyutunu bilmeden yakınlaştırabiliyor.
-- **Şablon tanımı:** Hâlâ tek tanım (`TEMPLATES` girdisi). Yeni şablon için kare başına hücre üreten bir builder yeterli.
-- **Ek paket:** Eklenmedi.
+- Tuş olarak Boşluk seçildi (Figma, Photoshop, Miro vb. ortak alışkanlığı). Orta tuşla kaydırma ve teker kaydırma aynen duruyor.
+- Şablon seçimi bilinçli olarak dışarıda: Adım 5.
 
 ## Nasıl kontrol ederim
-1. `npm run dev`, sonra http://localhost:3000 adresini açın.
-2. Masaüstünde:
-   - Tıklayın ve sürükleyin: boyar.
-   - Teker: kaydırır. Shift + teker: yatay kaydırır.
-   - Ctrl + teker (ya da dokunmatik yüzeyde sıkıştırma): imleç çevresinde yakınlaştırır.
-   - Orta tuşla sürükleme: kaydırır.
-   - Adadaki düğmeler: geri al, yinele, temizle, renk, −, %, +.
-3. Klavye: tuvale Tab ile gelin. Ok tuşları hücre seçer, Enter boyar; uzun süre sola basınca görüş hücreyi izler.
-4. Mobil: DevTools'ta 375 px dokunma emülasyonu açın.
-   - Tek parmak boyar, iki parmak yakınlaştırır ve kaydırır.
-   - Ada tek satır kalmalı; ayraçlar altta.
-5. Otomatik doğrulama: `scripts/verify-paint.mjs` dosyasının başındaki adımları izleyin.
+1. `npm run dev`, http://localhost:3000 aç.
+2. Tuvalin üstünde Boşluk'u basılı tut: imleç el olmalı. Sol tuşla sürükle: ızgara kaymalı, hücre boyanmamalı. Boşluğu bırak: boyama olmamalı.
+3. Boşluk olmadan sürükle: boyamalı.
+4. Tuvali Tab ile odakla, ok tuşlarıyla hücre seç, Boşluğa bas-bırak: seçili hücre boyanmalı. Enter da boyamalı.
+5. Adaya bak (masaüstü + tarayıcıyı 375px'e daralt): kahverengi cam, siyah değil.

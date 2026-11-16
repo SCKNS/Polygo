@@ -1,10 +1,10 @@
 # Polygo: İlerleme
 
 ## Durum
-- Şu anki adım: Adım 4 — tam sayfa sonsuz ızgara + masadaki "ada" (logo, araçlar, yakınlaştırma)
+- Şu anki adım: Adım 4 düzeltmesi — Boşluk + sürükle ile kaydırma, kahverengi cam ada
 - Durum: İNCELEME BEKLİYOR
-- Son onaylanan commit: 4cf0aa2 Adım 3: hücre boyama ve yakınlaştırma
-- Önerilen commit mesajı: Adım 4: sonsuz ızgara ve araç adası
+- Son commit: d634f69 Adım 4: sonsuz ızgara ve araç adası
+- Önerilen commit mesajı: Adım 4: düzeltme
 
 ## Adım planı
 Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki adıma geçilmez.
@@ -43,7 +43,8 @@ Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki
   büyük harfli `C:\...` yolundan çalıştırın. Linux/Vercel etkilenmez.
 - Kamera: `lib/camera.ts` (saf hesaplar, testli) + `lib/viewStore.ts` (Zustand). Kamera = ekran ortasındaki dünya noktası + yakınlaştırma;
   %100'de bir kare 40px, %100–%400. Teker kaydırır, Shift+teker yatay, Ctrl/Cmd+teker (dokunmatik yüzeyde sıkıştırma) imleç çevresinde
-  yakınlaştırır, orta tuşla sürükleme kaydırır; mobilde iki parmak hem yakınlaştırır hem kaydırır. Klavyede seçili hücre kenara yaklaşınca görüş onu ortalar.
+  yakınlaştırır, orta tuşla ya da Boşluk basılıyken sol tuşla sürükleme kaydırır (el aracı; Boşluk tuvalde artık bırakılınca boyar,
+  basılıyken kaydırma yapıldıysa boyamaz; odak düğme/yazı alanındaysa Boşluk onlarındır); mobilde iki parmak hem yakınlaştırır hem kaydırır. Klavyede seçili hücre kenara yaklaşınca görüş onu ortalar.
 - Çizim: ızgara çizgileri tek `<path>`, yalnız boyalı hücreler `<polygon>`. Görünen aralık 4 karenin katlarına yuvarlanır; kaydırırken
   hücre listesi yalnız aralık değişince yeniden üretilir. En küçük yakınlaştırma bu yüzden %100 (4K ekranda ~9 bin Dörtlü hücresi).
 - Adım 4 ölçümü (375px, dokunma emülasyonu): Kare %150'de (1 dokunuş), Dörtlü %338'de (3 dokunuş) her hücreye ≥44px daire sığıyor;
@@ -56,8 +57,10 @@ Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki
 - Boyama tek bir şablon için tutuluyor; şablon değişince ne olacağı (ayrı kayıt mı, temizleme mi) şablon paleti adımında (Adım 5) karar.
 - Adım 4 kararları (kullanıcı): sonsuz ızgara; ayrı adım; "defterin içi sınırsız ızgara olsun sadece" — sayfa içindeki logo, araç çubuğu,
   tuval altı notu ve sayfa altı yazıları sayfanın içinden kalkar. Adım 4 başında soruldu: logo ve araçlar "masaüstü ama dynamic island
-  şeklinde" → defterin üstünde ortalanmış koyu hap (`components/Island.tsx`). Dar ekranda adada yalnız logo işareti, ≤420px'te % göstergesi gizli.
+  şeklinde" → defterin üstünde ortalanmış hap (`components/Island.tsx`). Adım 4 düzeltmesinde kullanıcı isteğiyle siyah yerine
+  defter tonlarında yarı saydam kahverengi "liquid glass" (gradyan + backdrop-filter + iç ışık çizgisi). Dar ekranda adada yalnız logo işareti, ≤420px'te % göstergesi gizli.
   Sayfa altı yazıları ve tuval altı notu kaldırıldı (yeri yok); dekoratif kağıt ızgarası da kalktı, gerçek ızgara onun yerini aldı.
+- Şablon seçimi kullanıcı tarafından istendi (Adım 4 sonrası, "şablonlar seçilemiyor"): planda Adım 5; panel hâlâ yer tutucu.
 - Erişilebilirlik borcu (denetçi, Adım 3): tuvalin ekran okuyucu modeli yetersiz (`role="application"`, hücre id'si okunuyor,
   boyalı hücre yapısı gezilemiyor). Adım 8'de (ya da ızgara modeli oturduktan sonra) ele alınacak.
 - Tarayıcı doğrulama betiği: `scripts/verify-paint.mjs` (kullanımı dosyanın başında). Adım 4'te yeni modele göre yeniden yazıldı.

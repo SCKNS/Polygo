@@ -42,6 +42,11 @@ function linesPath(cells: readonly Cell[]): string {
   return cells.map((cell) => "M" + cell.points.map(([x, y]) => `${x} ${y}`).join("L") + "Z").join("");
 }
 
+// Boşluk tuşunun kendi işi olan öğeler (düğme, yazı alanı...): orada Boşluk kaydırma aracı olmaz.
+function isControl(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest("button, input, textarea, select, [contenteditable]") !== null;
+}
+
 export function Canvas({ template }: CanvasProps) {
   const fills = usePaintStore((state) => state.fills);
   const startStroke = usePaintStore((state) => state.startStroke);
@@ -59,8 +64,11 @@ export function Canvas({ template }: CanvasProps) {
   const pointers = useRef(new Map<number, ScreenPoint>());
   // İki parmak hareketi sürerken: başlangıç mesafesi ve yakınlaştırması. Tüm parmaklar kalkana dek boyama yapılmaz.
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
-  // Orta tuşla sürükleyerek kaydırma sürüyor mu?
+  // Orta tuşla ya da Boşluk + sol tuşla sürükleyerek kaydırma sürüyor mu?
   const panning = useRef(false);
+  // Boşluk basılı mı (çizim programlarındaki "el aracı") ve bu basışta kaydırma yapıldı mı?
+  const spaceHeld = useRef(false);
+  const spaceUsedForPan = useRef(false);
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -88,9 +96,33 @@ export function Canvas({ template }: CanvasProps) {
       }
     }
     svg.addEventListener("wheel", handleWheel, { passive: false });
+
+    // Boşluk basılıyken fareyle sürüklemek kaydırır. Odak bir düğme ya da yazı alanındaysa Boşluk onlarındır.
+    function handleSpaceDown(event: globalThis.KeyboardEvent) {
+      if (event.key !== " " || isControl(event.target)) return;
+      event.preventDefault(); // sayfa kaymasın
+      if (spaceHeld.current) return; // basılı tutunca gelen tekrarlar
+      spaceHeld.current = true;
+      spaceUsedForPan.current = false;
+      svg!.dataset.space = "true"; // imleç: el (CSS)
+    }
+    function releaseSpace() {
+      spaceHeld.current = false;
+      delete svg!.dataset.space;
+    }
+    function handleSpaceUp(event: globalThis.KeyboardEvent) {
+      if (event.key === " ") releaseSpace();
+    }
+    window.addEventListener("keydown", handleSpaceDown);
+    window.addEventListener("keyup", handleSpaceUp);
+    window.addEventListener("blur", releaseSpace); // pencere değişince tuş bırakılmış sayılır
+
     return () => {
       observer.disconnect();
       svg.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("keydown", handleSpaceDown);
+      window.removeEventListener("keyup", handleSpaceUp);
+      window.removeEventListener("blur", releaseSpace);
     };
   }, []);
 
@@ -137,8 +169,9 @@ export function Canvas({ template }: CanvasProps) {
     const point = localPoint(event);
     pointers.current.set(event.pointerId, point);
 
-    if (isMouse && event.button === 1) {
+    if (isMouse && (event.button === 1 || spaceHeld.current)) {
       panning.current = true;
+      spaceUsedForPan.current = spaceHeld.current;
       event.currentTarget.dataset.panning = "true"; // imleç: tutup sürükleme (CSS)
       return;
     }
@@ -231,6 +264,19 @@ export function Canvas({ template }: CanvasProps) {
     if (!inside) setCamera({ ...view, x: center[0], y: center[1] });
   }
 
+  function paintFocused() {
+    if (!focused) return;
+    setFocusedCell(focused);
+    startStroke(focused.id);
+    endStroke();
+  }
+
+  // Boşluk bırakılınca boyar; basılıyken fareyle kaydırma yapıldıysa boyamaz (el aracı olarak kullanıldı).
+  // React olayı pencere dinleyicisinden önce çalışır, yani spaceUsedForPan henüz sıfırlanmamıştır.
+  function handleKeyUp(event: KeyboardEvent<SVGSVGElement>) {
+    if (event.key === " " && !spaceUsedForPan.current) paintFocused();
+  }
+
   function handleKeyDown(event: KeyboardEvent<SVGSVGElement>) {
     const direction = ARROW_KEYS[event.key];
     const { zoomTo } = useViewStore.getState();
@@ -242,11 +288,9 @@ export function Canvas({ template }: CanvasProps) {
         setFocusedCell(next);
         keepInView(next);
       }
-    } else if ((event.key === "Enter" || event.key === " ") && focused) {
+    } else if (event.key === "Enter" && focused) {
       event.preventDefault();
-      setFocusedCell(focused);
-      startStroke(focused.id);
-      endStroke();
+      paintFocused();
     } else if (event.key === "+" || event.key === "=") {
       event.preventDefault();
       zoomTo(camera.zoom * ZOOM_STEP);
@@ -261,10 +305,10 @@ export function Canvas({ template }: CanvasProps) {
       <svg ref={svgRef} className="drawing-canvas" viewBox={size ? toViewBox(camera, size) : undefined}
         preserveAspectRatio="none"
         tabIndex={0} role="application" aria-roledescription="çizim tuvali"
-        aria-label={`${template.name} şablonu, sınırsız ızgara: ${paintedCount} boyalı hücre. Ok tuşlarıyla hücre seç, Enter ya da Boşluk ile boya; aynı renge tekrar basmak siler. Artı ve eksi yakınlaştırır.`}
+        aria-label={`${template.name} şablonu, sınırsız ızgara: ${paintedCount} boyalı hücre. Ok tuşlarıyla hücre seç, Enter ya da Boşluk ile boya; aynı renge tekrar basmak siler. Artı ve eksi yakınlaştırır. Boşluğu basılı tutup fareyle sürüklemek kaydırır.`}
         onPointerDown={handlePointerDown} onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} onLostPointerCapture={handleLostCapture}
-        onKeyDown={handleKeyDown}>
+        onKeyDown={handleKeyDown} onKeyUp={handleKeyUp}>
         {/* Yalnız boyalı hücreler çizilir; boş hücre şeffaftır ve hangi hücreye dokunulduğu geometriyle bulunur. */}
         <g className="canvas-cells">
           {paintedCells.map((cell) => (

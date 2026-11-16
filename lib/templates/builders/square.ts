@@ -8,20 +8,47 @@ import { isOdd, rect } from "./common";
 const OCTAGON_CUT = 1 / (2 + Math.SQRT2);
 
 // Kare karonun dört köşesinden k kadar kesilmiş üçgenler (Elmas ve Sekizgen'in köşe parçaları).
-function cornerTriangles(prefix: string, x: number, y: number, k: number): Cell[] {
+function cornerTriangles(
+  prefix: string,
+  x: number,
+  y: number,
+  k: number,
+): Cell[] {
   return [
-    shape(`${prefix}-nw`, [[x, y], [x + k, y], [x, y + k]]),
-    shape(`${prefix}-ne`, [[x + 1, y], [x + 1, y + k], [x + 1 - k, y]]),
-    shape(`${prefix}-se`, [[x + 1, y + 1], [x + 1 - k, y + 1], [x + 1, y + 1 - k]]),
-    shape(`${prefix}-sw`, [[x, y + 1], [x, y + 1 - k], [x + k, y + 1]]),
+    shape(`${prefix}-nw`, [
+      [x, y],
+      [x + k, y],
+      [x, y + k],
+    ]),
+    shape(`${prefix}-ne`, [
+      [x + 1, y],
+      [x + 1, y + k],
+      [x + 1 - k, y],
+    ]),
+    shape(`${prefix}-se`, [
+      [x + 1, y + 1],
+      [x + 1 - k, y + 1],
+      [x + 1, y + 1 - k],
+    ]),
+    shape(`${prefix}-sw`, [
+      [x, y + 1],
+      [x, y + 1 - k],
+      [x + k, y + 1],
+    ]),
   ];
 }
 
 // Karenin kenarındaki sekiz nokta (köşeler ve kenar ortaları), sol üst köşeden saat yönünde.
 function squareRim(x: number, y: number): Point[] {
   return [
-    [x, y], [x + 0.5, y], [x + 1, y], [x + 1, y + 0.5],
-    [x + 1, y + 1], [x + 0.5, y + 1], [x, y + 1], [x, y + 0.5],
+    [x, y],
+    [x + 0.5, y],
+    [x + 1, y],
+    [x + 1, y + 0.5],
+    [x + 1, y + 1],
+    [x + 0.5, y + 1],
+    [x, y + 1],
+    [x, y + 0.5],
   ];
 }
 
@@ -44,20 +71,38 @@ export function pixelCells(x: number, y: number): readonly Cell[] {
 // Sol alttan sağ üste çizilen çaprazla iki üçgen.
 function diagonalParts(x: number, y: number): [string, Segment[]][] {
   return [
-    ["a", [[x, y], [x + 1, y], [x, y + 1]]],
-    ["b", [[x + 1, y], [x + 1, y + 1], [x, y + 1]]],
+    [
+      "a",
+      [
+        [x, y],
+        [x + 1, y],
+        [x, y + 1],
+      ],
+    ],
+    [
+      "b",
+      [
+        [x + 1, y],
+        [x + 1, y + 1],
+        [x, y + 1],
+      ],
+    ],
   ];
 }
 
 // Her kare, sol alttan sağ üste çizilen çaprazla iki üçgene bölünür.
 export function diagonalCells(x: number, y: number): readonly Cell[] {
-  return diagonalParts(x, y).map(([name, segments]) => shape(`${x}-${y}-${name}`, segments));
+  return diagonalParts(x, y).map(([name, segments]) =>
+    shape(`${x}-${y}-${name}`, segments),
+  );
 }
 
 // Çapraz, ama komşu karelerde yönü değişir: çaprazlar birleşip büyük elmaslar çizer.
 export function zigzagCells(x: number, y: number): readonly Cell[] {
   const mirror = isOdd(x + y);
-  return diagonalParts(x, y).map(([name, segments]) => shape(`${x}-${y}-${name}`, mirror ? mirrorX(segments, x) : segments));
+  return diagonalParts(x, y).map(([name, segments]) =>
+    shape(`${x}-${y}-${name}`, mirror ? mirrorX(segments, x) : segments),
+  );
 }
 
 // Her kare, iki çaprazla merkezde birleşen dört üçgene bölünür.
@@ -75,14 +120,21 @@ export function crossCells(x: number, y: number): readonly Cell[] {
 export function eightSliceCells(x: number, y: number): readonly Cell[] {
   const center: Point = [x + 0.5, y + 0.5];
   const rim = squareRim(x, y);
-  return rim.map((point, i) => shape(`${x}-${y}-${i}`, [point, rim[(i + 1) % rim.length], center]));
+  return rim.map((point, i) =>
+    shape(`${x}-${y}-${i}`, [point, rim[(i + 1) % rim.length], center]),
+  );
 }
 
 // Kenar ortalarını birleştiren elmas + dört köşe üçgeni. Komşu karelerin köşeleri birleşince yeni elmaslar çıkar.
 export function diamondCells(x: number, y: number): readonly Cell[] {
   const prefix = `${x}-${y}`;
   return [
-    shape(`${prefix}-center`, [[x + 0.5, y], [x + 1, y + 0.5], [x + 0.5, y + 1], [x, y + 0.5]]),
+    shape(`${prefix}-center`, [
+      [x + 0.5, y],
+      [x + 1, y + 0.5],
+      [x + 0.5, y + 1],
+      [x, y + 0.5],
+    ]),
     ...cornerTriangles(prefix, x, y, 0.5),
   ];
 }
@@ -93,7 +145,14 @@ export function octagonCells(x: number, y: number): readonly Cell[] {
   const c = OCTAGON_CUT;
   return [
     shape(`${prefix}-center`, [
-      [x + c, y], [x + 1 - c, y], [x + 1, y + c], [x + 1, y + 1 - c], [x + 1 - c, y + 1], [x + c, y + 1], [x, y + 1 - c], [x, y + c],
+      [x + c, y],
+      [x + 1 - c, y],
+      [x + 1, y + c],
+      [x + 1, y + 1 - c],
+      [x + 1 - c, y + 1],
+      [x + c, y + 1],
+      [x, y + 1 - c],
+      [x, y + c],
     ]),
     ...cornerTriangles(prefix, x, y, c),
   ];
@@ -104,9 +163,24 @@ export function pinwheelCells(x: number, y: number): readonly Cell[] {
   const prefix = `${x}-${y}`;
   const center: Point = [x + 0.5, y + 0.5];
   return [
-    shape(`${prefix}-a`, [center, [x + 0.75, y], [x + 1, y], [x + 1, y + 0.75]]),
-    shape(`${prefix}-b`, [center, [x + 1, y + 0.75], [x + 1, y + 1], [x + 0.25, y + 1]]),
-    shape(`${prefix}-c`, [center, [x + 0.25, y + 1], [x, y + 1], [x, y + 0.25]]),
+    shape(`${prefix}-a`, [
+      center,
+      [x + 0.75, y],
+      [x + 1, y],
+      [x + 1, y + 0.75],
+    ]),
+    shape(`${prefix}-b`, [
+      center,
+      [x + 1, y + 0.75],
+      [x + 1, y + 1],
+      [x + 0.25, y + 1],
+    ]),
+    shape(`${prefix}-c`, [
+      center,
+      [x + 0.25, y + 1],
+      [x, y + 1],
+      [x, y + 0.25],
+    ]),
     shape(`${prefix}-d`, [center, [x, y + 0.25], [x, y], [x + 0.75, y]]),
   ];
 }
@@ -120,10 +194,30 @@ export function frameCells(x: number, y: number): readonly Cell[] {
   const d = y + 0.75;
   return [
     rect(`${prefix}-center`, a, c, 0.5, 0.5),
-    shape(`${prefix}-top`, [[x, y], [x + 1, y], [b, c], [a, c]]),
-    shape(`${prefix}-right`, [[x + 1, y], [x + 1, y + 1], [b, d], [b, c]]),
-    shape(`${prefix}-bottom`, [[x + 1, y + 1], [x, y + 1], [a, d], [b, d]]),
-    shape(`${prefix}-left`, [[x, y + 1], [x, y], [a, c], [a, d]]),
+    shape(`${prefix}-top`, [
+      [x, y],
+      [x + 1, y],
+      [b, c],
+      [a, c],
+    ]),
+    shape(`${prefix}-right`, [
+      [x + 1, y],
+      [x + 1, y + 1],
+      [b, d],
+      [b, c],
+    ]),
+    shape(`${prefix}-bottom`, [
+      [x + 1, y + 1],
+      [x, y + 1],
+      [a, d],
+      [b, d],
+    ]),
+    shape(`${prefix}-left`, [
+      [x, y + 1],
+      [x, y],
+      [a, c],
+      [a, d],
+    ]),
   ];
 }
 
@@ -136,7 +230,12 @@ export function star4Cells(x: number, y: number): readonly Cell[] {
   const ne: Point = [x + 0.5 + t, y + 0.5 - t];
   const se: Point = [x + 0.5 + t, y + 0.5 + t];
   const sw: Point = [x + 0.5 - t, y + 0.5 + t];
-  const [top, right, bottom, left]: Point[] = [[x + 0.5, y], [x + 1, y + 0.5], [x + 0.5, y + 1], [x, y + 0.5]];
+  const [top, right, bottom, left]: Point[] = [
+    [x + 0.5, y],
+    [x + 1, y + 0.5],
+    [x + 0.5, y + 1],
+    [x, y + 0.5],
+  ];
   return [
     shape(`${prefix}-star`, [top, ne, right, se, bottom, sw, left, nw]),
     shape(`${prefix}-nw`, [[x, y], top, nw, left]),
@@ -157,7 +256,12 @@ export function star8Cells(x: number, y: number): readonly Cell[] {
     return [x + 0.5 + r * Math.cos(radians), y + 0.5 + r * Math.sin(radians)];
   });
   return [
-    shape(`${prefix}-star`, rim.flatMap((tip, i) => [tip, inner[i]])),
-    ...rim.map((tip, i) => shape(`${prefix}-${i}`, [tip, rim[(i + 1) % rim.length], inner[i]])),
+    shape(
+      `${prefix}-star`,
+      rim.flatMap((tip, i) => [tip, inner[i]]),
+    ),
+    ...rim.map((tip, i) =>
+      shape(`${prefix}-${i}`, [tip, rim[(i + 1) % rim.length], inner[i]]),
+    ),
   ];
 }

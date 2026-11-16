@@ -1,31 +1,34 @@
 # Polygo: İlerleme
 
 ## Durum
-- Şu anki adım: Adım 5 — Şablon paleti (42 şablon, gruplu panelden seçim)
-- Durum: İNCELEME BEKLİYOR
-- Son commit: a6b02f2 Adım 4: düzeltme
-- Önerilen commit mesajı: Adım 5: şablon paleti ve yeni şablonlar
+
+- Şu anki adım: Adım 8 — cila, erişilebilirlik ve yayın
+- Durum: YEREL DOĞRULAMA TAMAMLANDI
+- Son doğrulama: 476 birim testi, ESLint, Next.js production build ve gerçek Chrome sürüm testi temiz
+- Yayın: Vercel projesi bağlı; son sürüm dağıtımı ve canlı adres kontrolü bu değişikliklerin gönderilmesinden sonra yapılacak
 
 ## Adım planı
+
 Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki adıma geçilmez.
 
-1. **Kurulum + defter arayüzü iskeleti:** Next.js/TS/Tailwind kurulumu, .gitignore, krem zeminli defter sayfası,
+1. ✅ **Kurulum + defter arayüzü iskeleti:** Next.js/TS/Tailwind kurulumu, .gitignore, krem zeminli defter sayfası,
    sol spiral teller, sağ sekme ayraçları (Şablonlar, Renkler, İndir), ayracın açtığı küçük panel (içi boş/yer tutucu),
    ortada yer tutucu tuval. Masaüstü + mobil düzen. İşlev yok, sadece sekme açıp kapama.
-2. **Şablon veri yapısı + tuvalde ızgara:** Hücre/şablon tipleri, ilk 2-3 şablon, SVG tuvalde çizim.
-3. **Boyama:** Hücreye tıkla/sürükle boya, serbest renk seçici, hazır ve son kullanılan renkler, geri al, temizle (Zustand).
-4. **Tam sayfa sonsuz ızgara:** Defter sayfasının içi yalnız ızgara (kullanıcı kararı, Adım 3 incelemesi sırasında).
+2. ✅ **Şablon veri yapısı + tuvalde ızgara:** Hücre/şablon tipleri, ilk 2-3 şablon, SVG tuvalde çizim.
+3. ✅ **Boyama:** Hücreye tıkla/sürükle boya, serbest renk seçici, hazır ve son kullanılan renkler, geri al, temizle (Zustand).
+4. ✅ **Tam sayfa sonsuz ızgara:** Defter sayfasının içi yalnız ızgara (kullanıcı kararı, Adım 3 incelemesi sırasında).
    Izgara her yöne sınırsız; kaydırma (masaüstü teker/sürükleme, mobil iki parmak) ve yakınlaştırma. Görünen alanın hücreleri
    o an üretilir; hücre id'leri dünya koordinatı (`x-y`, `x-y-a` ...) olarak kalır, negatif koordinat da olabilir.
    İndirmede (Adım 6) yalnız boyalı hücrelerin çevresi kırpılır. Şablonlar sabit boyutlu tuval değil, tekrar eden desen olur.
    Logo, araçlar ve yakınlaştırma defterin dışında, masada duran hap biçimli "ada"ya taşınır (kullanıcı: "dynamic island şeklinde").
-5. **Şablon paleti:** Çok sayıda şablon, panelde küçük önizlemeler, seçince tuval değişir.
+5. ✅ **Şablon paleti:** Çok sayıda şablon, panelde küçük önizlemeler, seçince tuval değişir.
    Kullanıcı isteği (videodaki gibi): farklı geometrik şekillerin birleşiminden oluşan desenler (daire, yay, altıgen, üçgen, sekizgen...).
-6. **İndirme:** SVG ve şeffaf PNG (arka plan rengi seçilebilir ya da şeffaf), hücre arası çizgi sorunu çözülür.
-7. **Kayıt:** Çalışma localStorage'da saklanır, sayfa yenilenince geri gelir.
-8. **Cila ve yayın:** Testler (Vitest), erişilebilirlik, README (ekran görüntüleri + teknik kararlar), Vercel yayını.
+6. ✅ **İndirme:** SVG ve şeffaf PNG (arka plan rengi seçilebilir ya da şeffaf), hücre arası çizgi sorunu çözülür.
+7. ✅ **Kayıt:** Çalışma localStorage'da saklanır, sayfa yenilenince geri gelir.
+8. ⏳ **Cila ve yayın:** Testler (Vitest), erişilebilirlik ve README tamamlandı; Vercel canlı dağıtım kontrolü kaldı.
 
 ## Bilinen kararlar / açık sorular
+
 - Tasarım kararları proje kurallar dosyasında.
 - Vurgu: #D9482B. El yazısı: Caveat; arayüz: DM Sans (latin-ext).
 - Şablonlar `lib/templates/` altında veri; builder'lar `lib/templates/builders/` altında gruplara göre dosyalarda
@@ -82,14 +85,15 @@ Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki
 - `video/` (kullanıcının referans videosu, ~6 MB) repoya girmez: `.git/info/exclude`'a eklendi.
 - Bu makinede git "dubious ownership" uyarısı veriyor (.git başka Windows kullanıcısına ait); komutlar `git -c safe.directory=C:/Users/sec/Desktop/polygo ...`
   ile çalıştırıldı, global ayar değiştirilmedi.
-- Erişilebilirlik borcu (denetçi, Adım 3): tuvalin ekran okuyucu modeli yetersiz (`role="application"`, hücre id'si okunuyor,
-  boyalı hücre yapısı gezilemiyor). Adım 8'de (ya da ızgara modeli oturduktan sonra) ele alınacak.
+- Erişilebilirlik: tuvalin adı, ayrıntılı klavye yönergeleri, toplam/renk bazlı çizim özeti ve seçili hücrenin okunabilir dünya konumu
+  ekran okuyucuya sunulur. Görsel hücre kimlikleri artık canlı bölgede okunmaz.
 - Tarayıcı doğrulama betikleri: `scripts/verify-paint.mjs` (boyama/kamera, Kare'de) ve `scripts/verify-templates.mjs` (Adım 5: şablon seçimi,
   geri al, çapraz tuş, ekran görüntüleri). Kullanımları dosyaların başında.
 - Windows notu: `next build` çalışan bir `next start`'ın altındaki `.next`'i değiştirir; eski sunucu stilsiz/eski sayfa verir. Doğrulamadan önce
   3123 portundaki süreci durdurup sunucuyu yeniden başlatın (komut satırında `next" start` geçer, `next start` diye aramak eşleşmez).
 - Chrome notu: iki parmakla kaydırmadan ~100 ms içinde gelen dokunuşun `click` olayı yutuluyor (boyama pointerdown kullandığından etkilenmez).
-- `getTemplate` yalnız `TemplateId` alır; kayıttan gelen bilinmeyen kimliği varsayılana düşüren kontrol kayıt adımında (Adım 7).
+- Kayıt `zustand/persist` ile hydration sonrasında yüklenir. Bilinmeyen şablon, geçersiz renk, hücre kimliği ve eski/bozuk veri
+  `sanitizePersistedState` tarafından doğrulanır; geçersiz şablon Kare'ye düşer.
 - Sayfa yakınlaşması (Adım 5 incelemesi öncesi, kullanıcı "site bozuldu"): tuval dışında touchpad sıkıştırması tarayıcıya kalıp bütün
   sayfayı büyütüyordu. `Canvas.tsx`'te `window` düzeyinde Ctrl/Cmd + teker engellenir, `.desk`'te `touch-action: pan-x pan-y`.
   Yakınlaşmış bir sekmede Ctrl+0 sayfayı düzeltir.
@@ -97,6 +101,7 @@ Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki
 - Görsel kontrol: yerel Chrome headless ekran görüntüsü (masaüstü 1280px, mobil 375px iframe). Hover/tık bu yolla doğrulanmaz.
 
 ## DENETÇİYE VER şablonu
+
 Adım sonunda kullanıcıya bu blok, boşlukları doldurularak verilir:
 
 ```

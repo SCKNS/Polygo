@@ -1,6 +1,29 @@
-# İnceleme: Adım 5 — Şablon paleti (42 şablon, gruplu panelden seçim)
+# Son sürüm doğrulaması — Adım 8
+
+16 Kasım 2026 tarihinde yerel kaynak üzerinde aşağıdaki kontroller tamamlandı:
+
+- `npm test`: 6 dosya, 476 test geçti.
+- `npm run lint`: uyarı ve hata yok.
+- `npm run build`: Next.js 16.4.6 production derlemesi ve TypeScript temiz; `/` statik üretildi.
+- `scripts/verify-release.mjs`, gerçek Chrome 157 üzerinde geçti: hücre boyama `localStorage`'a yazıldı, tam sayfa yenilemesinden
+  sonra geri geldi; tuvalin erişilebilir adı, konum/renk canlı açıklaması ve çizim özeti doğrulandı; gerçek şeffaf SVG ile
+  1024×1024 PNG dosyaları indirildi ve dosya içerikleri/imzaları okundu.
+- Kayıt yalnız şablon, boyama, seçili renk ve son renkleri saklar. Geri-al/yinele geçmişi ve yarım fırça hareketi saklanmaz.
+  Bozuk/eski kayıtlar `sanitizePersistedState` ile doğrulanır ve güvenli varsayılanlara düşer.
+
+## Kalan manuel riskler
+
+- Fiziksel iPhone/Android ile Safari ve Firefox üzerinde son bir kullanıcı kabul turu otomatik Chrome testinin yerini tutmaz.
+- Çok yoğun yaylı şablonların gerçek 4K ekrandaki performansı cihazın GPU/CPU gücüne bağlıdır.
+- `role="application"` karmaşık tuvalin klavye olaylarını ekran okuyucuya bırakmak için bilerek kullanılır; NVDA/VoiceOver ile
+  manuel kullanım testi yayın sonrası izleme maddesidir.
+
+---
+
+# Tarihsel inceleme: Adım 5 — Şablon paleti (42 şablon, gruplu panelden seçim)
 
 ## Amaç
+
 Kullanıcı isteği: "Şablonlar artık seçilebilsin; şu an görünen şablonlar yetersiz. Attığım videodaki gibi farklı geometrik
 şekillerin birleşiminden oluşan şablonlar lazım." Referans video (`video/`, repoya girmez) kareleri incelendi: koyu bir
 uygulama; ızgara daireler + çaprazlar gibi iç içe şekillerden oluşuyor, sağda çok sayıda desen önizlemesi var, hücreler
@@ -15,11 +38,12 @@ bunun 2-3 katı şablon olsun." Bu yüzden aynı adımda şablon sayısı **42**
 genişletilmesi.
 
 ## Şablon listesi (42)
-| Grup | Şablonlar (yeni olanlar **kalın**) |
-|---|---|
-| Kare (12) | Kare, **Piksel**, Çapraz, **Zikzak**, Dörtlü, **Sekiz dilim**, Elmas, Sekizgen, **Fırıldak**, **Çerçeve**, **Yıldız**, **Sekiz köşe** |
-| Yay (12) | Daire, Yonca, Yaprak, **Çiçek**, Dalga, **Kıvrım**, Halka, **Yelpaze**, **Kesişen daire**, **Pul**, **Kemer**, **Dalgalı şerit** |
-| Taş örgü (6) | **Tuğla**, **Merdiven**, **Hasır**, **Parke**, **Balıksırtı**, **İki kare** |
+
+| Grup                  | Şablonlar (yeni olanlar **kalın**)                                                                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Kare (12)             | Kare, **Piksel**, Çapraz, **Zikzak**, Dörtlü, **Sekiz dilim**, Elmas, Sekizgen, **Fırıldak**, **Çerçeve**, **Yıldız**, **Sekiz köşe**                              |
+| Yay (12)              | Daire, Yonca, Yaprak, **Çiçek**, Dalga, **Kıvrım**, Halka, **Yelpaze**, **Kesişen daire**, **Pul**, **Kemer**, **Dalgalı şerit**                                   |
+| Taş örgü (6)          | **Tuğla**, **Merdiven**, **Hasır**, **Parke**, **Balıksırtı**, **İki kare**                                                                                        |
 | Üçgen ve altıgen (12) | Üçgen, **Sık üçgen**, **Üç dilim**, Altıgen, **Uçurtma**, **Petek halka**, Küp, **Karışık küp**, **İnce üçgen**, Altıgen + üçgen, **Altıgen + kare**, Kare + üçgen |
 
 Kısa tanımlar: Zikzak = yönü komşu karede değişen çapraz; Fırıldak = merkezden kenar ortasının yanına giden dört kanat;
@@ -31,7 +55,9 @@ Pul = balık pulu; Kemer = yarım daire + ters U, tek satırlar kayık; Balıks�
 Karışık küp = alt sıradaki altıgenler ters bölünmüş Küp; İnce üçgen = altıgen 12 dik üçgene bölünmüş; Altıgen + kare = 3.4.6.4 döşemesi.
 
 ## Değişiklikler
+
 ### Şablon modeli (`lib/templates/`)
+
 - `types.ts`
   - `Cell` artık `{ id, points, d }`. Sözleşme: basit çokgen (içbükey olabilir), ağırlık merkezi kendi içinde.
     `points` isabet testi/geometri testi için, `d` çizim için (yaylar gerçek SVG `A` komutu).
@@ -59,11 +85,13 @@ Karışık küp = alt sıradaki altıgenler ters bölünmüş Küp; İnce üçge
 - `lib/camera.ts`: yalnız tip adı `SquareRange` → `WorldRange`.
 
 ### Durum
+
 - `lib/paintStore.ts`: `templateId` (varsayılan Kare) ve `setTemplate`. Geçmiş artık `Drawing = { templateId, fills }` saklar.
   Şablon değişince tuval boşalır (id'ler şablona özgü); boyalıysa bu bir geri alma adımıdır, boşsa geçmişe yazılmaz.
   Fırça sürerken ya da aynı şablon seçilince bir şey yapmaz.
 
 ### Arayüz
+
 - `components/TemplatePicker.tsx` (yeni): her grup bir `section` + el yazısı `h3` başlık + `role="group"` (aria-label "<grup> şablonları");
   içinde 3 sütunlu `button`'lar (`aria-pressed`, `data-template` = kimlik). Önizlemeler şablon verisinden üretilir (3×3 birim, modül yüklenince bir kez).
   Altta not: "şablon değişince tuval boşalır; geri al ile önceki çizime dönersin."
@@ -75,9 +103,11 @@ Karışık küp = alt sıradaki altıgenler ters bölünmüş Küp; İnce üçge
   masaüstü panel uzun içerikte kayar (ince kaydırma çubuğu); mobilde grup 300px'e sınırlı ve ortalı; panelin en büyük yüksekliği `100svh - 132px`.
 
 ### İnceleme öncesi düzeltme: sayfa kendi kendine büyüyordu
+
 Kullanıcı ekranında ada ve spiral kaybolmuş, ızgara bütün pencereyi kaplıyordu. Neden: dokunmatik yüzeyde sıkıştırma (Chrome bunu
 Ctrl + teker olarak yollar) yalnız tuvalde yakalanıyordu; ada, ayraçlar ya da masa kenarı üstünde yapılınca tarayıcı **bütün sayfayı**
 büyütüp kaydırıyordu (görsel yakınlaştırma). Sayfa bozulmamıştı, yalnız büyütülmüştü.
+
 - `components/Canvas.tsx`: tuvalin tekerlek efektine `window` düzeyinde pasif olmayan bir dinleyici eklendi; Ctrl/Cmd + teker her yerde
   `preventDefault` alır. Tuvalin kendi yakınlaştırması değişmedi.
 - `app/globals.css`: `.desk`'e `touch-action: pan-x pan-y` (dokunmatik ekranda iki parmakla sayfa büyütmeyi kapatır; panelin kaydırması çalışır).
@@ -88,9 +118,11 @@ büyütüp kaydırıyordu (görsel yakınlaştırma). Sayfa bozulmamıştı, yal
   "hiçbir dinleyici yokken" davranışı gösterir; ada/ayraç için düzeltme öncesi durum da buydu (oralarda dinleyici yoktu).
 
 ### İnceleme öncesi düzeltme: Boşluk + sürükleme kaydırması bir süre sonra bozuluyordu
+
 Kullanıcı: "space basılı tutup kaydırma en başta çalışıyor, sonradan bozuluyor". Neden: Boşluk, odak bir düğmedeyse düğmenin sayılıyordu.
 Fareyle tıklanan düğme (ada +/−, şablon) odağı tutar; panel kapanınca da odak bilerek ayraca döner (Panel.tsx). Tuvale tıklamak odağı almaz
 (`pointerdown`'da `preventDefault`). Sonuç: ilk düğme tıklamasından sonra Boşluk kaydırmıyor, üstelik ayraca basıp paneli yeniden açıyordu.
+
 - `components/Canvas.tsx`: pencereye `pointerdown` (yakalama evresi) dinleyicisi; son etkileşim fare/dokunma mı tutulur, Boşluk dışındaki her tuş
   bunu sıfırlar. Boşluk geldiğinde odak bir **düğmede** ve son etkileşim fareyse düğme `blur()` edilir ve Boşluk el aracı olur. Klavyeyle
   (Tab) gelinen düğmede ve yazı alanlarında Boşluk eskisi gibi onlarındır.
@@ -100,6 +132,7 @@ Fareyle tıklanan düğme (ada +/−, şablon) odağı tutar; panel kapanınca d
   tuval odaklıyken tek Boşluk boyuyor, Boşluk+sürükle boyamadan kaydırıyor. `verify-paint.mjs square` yeniden çalıştırıldı: tümü geçti.
 
 ### Testler ve betikler
+
 - `templates.test.ts` yeniden yazıldı (aşağıda); `EXPECTED_CELLS_PER_TILE` 42 girdi. `grid.test.ts`, `paintStore.test.ts` güncellendi/genişletildi.
 - `neighbors.test.ts`: "her hücreye ok + çapraz tuşla ulaşılır" testi, karo başına 8'den çok hücreli şablonlarda 8×8 yerine **4×4** karoluk
   parçada çalışır (`SMALL_PIECE`). Neden: arama her adımda bütün listeyi tarar; İnce üçgen'de 8×8 karo = 1536 hücre, test 9.5 s sürüp
@@ -109,23 +142,29 @@ Fareyle tıklanan düğme (ada +/−, şablon) odağı tutar; panel kapanınca d
 - `docs/screenshots/step5-*.png`; `docs/PROGRESS.md` güncellendi. `video/` `.git/info/exclude`'da (6 MB; repoya girmez).
 
 ## Komutlar ve gerçek çıktılar
+
 `npm run lint`:
+
 ```
 > polygo@0.1.0 lint
 > eslint .
 ```
+
 (uyarı/hata yok)
 
 `npm test` (büyük harfli `C:\` yolundan; bkz. PROGRESS Windows notu):
+
 ```
  Test Files  5 passed (5)
       Tests  470 passed (470)
    Duration  15.28s
 ```
+
 (İlk denemede 3 test kırıldı, düzeltildi: Kemer kubbesinin `d`'sinde tek yay olduğundan yalnız 2 uç nokta vardı (test ≥3 ister) → kubbe
 iki çeyrek yaya bölündü; Yonca ve İnce üçgen erişim testleri zaman aşımı → yukarıdaki `SMALL_PIECE`.)
 
 `npm run build` (son çalıştırma):
+
 ```
 ✓ Compiled successfully in 734ms
   Running TypeScript ...
@@ -140,6 +179,7 @@ Route (app)
 `shape.ts` ve `neighbors.ts` dahil. Proje şu an Prettier biçimine uymuyor (uzun satırlar); diff'i şişirmemek için toplu biçimlendirme yapılmadı.
 
 Tarayıcı (`npm run start -- -p 3123`, headless Chrome), `node scripts/verify-templates.mjs docs/screenshots` — çıkış kodu 0:
+
 ```
 OK   masaüstü: panelde 42 şablon düğmesi (Kare, Piksel, Çapraz, Zikzak, Dörtlü, Sekiz dilim, Elmas, Sekizgen, Fırıldak, Çerçeve, Yıldız, Sekiz köşe, Daire, Yonca, Yaprak, Çiçek, Dalga, Kıvrım, Halka, Yelpaze, Kesişen daire, Pul, Kemer, Dalgalı şerit, Tuğla, Merdiven, Hasır, Parke, Balıksırtı, İki kare, Üçgen, Sık üçgen, Üç dilim, Altıgen, Uçurtma, Petek halka, Küp, Karışık küp, İnce üçgen, Altıgen + üçgen, Altıgen + kare, Kare + üçgen)
 OK   masaüstü: dört grup başlığı (Kare|Yay|Taş örgü|Üçgen ve altıgen)
@@ -160,19 +200,21 @@ Gerileme: `node scripts/verify-paint.mjs square` — çıkış kodu 0, son satı
 
 Performans (Vitest içinde geçici ölçüm dosyası, çalıştırıldıktan sonra silindi; 1280×800 %100'e karşılık gelen 36×24 birimlik alan,
 `cellsInView` + `outlinePath`, ısınmadan sonra 5 tekrar ortalaması):
-| şablon | hücre | çizgi yolu | süre |
-|---|---|---|---|
-| Kare | 988 | 22 KB | 1.0 ms |
-| Yonca (mevcut, en ağır) | 11 856 | 483 KB | 16.8 ms |
-| Sekiz köşe | 8 892 | 377 KB | 11.7 ms |
-| Uçurtma | 7 296 | 346 KB | 12.6 ms |
-| Sık üçgen | 9 728 | 357 KB | 10.0 ms |
-| Üç dilim | 7 296 | 246 KB | 6.8 ms |
-| Kesişen daire | 2 964 | 257 KB | 4.8 ms |
-| Pul / İnce üçgen / Petek halka / Altıgen + kare | 1 976–4 320 | 111–140 KB | 3.4–3.6 ms |
-Yeni şablonların hiçbiri mevcut Yonca'dan ağır değil.
+
+| şablon                                                | hücre       | çizgi yolu | süre       |
+| ----------------------------------------------------- | ----------- | ---------- | ---------- |
+| Kare                                                  | 988         | 22 KB      | 1.0 ms     |
+| Yonca (mevcut, en ağır)                               | 11 856      | 483 KB     | 16.8 ms    |
+| Sekiz köşe                                            | 8 892       | 377 KB     | 11.7 ms    |
+| Uçurtma                                               | 7 296       | 346 KB     | 12.6 ms    |
+| Sık üçgen                                             | 9 728       | 357 KB     | 10.0 ms    |
+| Üç dilim                                              | 7 296       | 246 KB     | 6.8 ms     |
+| Kesişen daire                                         | 2 964       | 257 KB     | 4.8 ms     |
+| Pul / İnce üçgen / Petek halka / Altıgen + kare       | 1 976–4 320 | 111–140 KB | 3.4–3.6 ms |
+| Yeni şablonların hiçbiri mevcut Yonca'dan ağır değil. |
 
 ## Ekran görüntüleri
+
 - Masaüstü panel (1280×800): `docs/screenshots/step5-panel-desktop.png` (Kare grubu), `step5-panel-desktop-2.png` (Yay + Taş örgü),
   `step5-panel-desktop-3.png` (Üçgen ve altıgen + alt not)
 - Mobil panel (375×812, 2x): `step5-panel-mobile.png`, `step5-panel-mobile-2.png`, `step5-panel-mobile-3.png`
@@ -188,6 +230,7 @@ mercekler ve içbükey yıldız, Pul'da pullar, Altıgen + kare'de altıgen, kar
 eksik çizgi yok, büyük altıgenler kenardan kesildiği için öyle görünüyor.
 
 ## İddialar
+
 1. 42 şablon var, panelde dört grup halinde; hepsi fare ve dokunuşla seçilebiliyor; tuval seçilen şablonu çiziyor (tarayıcı betiği, 84 seçim kontrolü).
 2. Her şablon düzlemi boşluksuz ve örtüşmesiz dolduruyor: karo başına alan = karo alanı ve 6×6 karoluk bölgede iki karonun hücreleri
    bütün hücrelerle örtüşme testinden geçiyor (`templates.test.ts`, 42 şablon).
@@ -204,6 +247,7 @@ eksik çizgi yok, büyük altıgenler kenardan kesildiği için öyle görünüy
     düzeltmeden sonra build temiz, lint temiz, `npm test` 470/470).
 
 ## Şüpheler / bilinen eksikler
+
 - **%100'de küçük parçalar:** Sekiz köşe üçgenleri, Sık üçgen, Yonca köşe parçaları, Sekizgen köşe üçgenleri %100'de ~10px; mobilde
   yakınlaştırmadan doğru dokunmak zor. "≥44px daire" ölçümü yalnız Kare/Dörtlü için yapılmıştı; yeni şablonlar için ölçülmedi.
 - **Kıvrım'ın "rastgele"liği:** `coinFlip` basit bir tamsayı karıştırması; görsel olarak rastgele duruyor ama istatistiksel olarak denenmedi.
@@ -232,6 +276,7 @@ eksik çizgi yok, büyük altıgenler kenardan kesildiği için öyle görünüy
 - Gerçek telefonda ve Safari/Firefox'ta denenmedi; doğrulama yalnız headless Chrome.
 
 ## Karar notları
+
 - **Şablon değişince tuval boşalır, geri alınabilir:** id'ler şablona özgü; onay penceresi yerine geri alma adımı.
 - **Karo modeli:** altıgen/üçgen için "hücre karesinden taşmaz" kuralı gevşetildi (en fazla bir karo taşar).
 - **Gerçek yaylar:** önce yaylar kısa çizgilerle çizildi; yol 1280×800'de 1.2 MB çıktı. `shape()` ile gerçek yaya geçildi, `points` tembelleşti.
@@ -243,13 +288,14 @@ eksik çizgi yok, büyük altıgenler kenardan kesildiği için öyle görünüy
 - Şablon adları Türkçe ve kısa; kimlikler İngilizce (`zigzag`, `truchet`, `herringbone`, `rhombi`...).
 
 ## Nasıl kontrol ederim
+
 1. `npm install` (gerekirse), `npm run dev`, tarayıcıda `http://localhost:3000`.
 2. Sağdaki **Şablonlar** ayracını aç: dört başlık (Kare, Yay, Taş örgü, Üçgen ve altıgen), 42 önizleme. Birine tıkla: kenarı turuncu olur, tuval o deseni çizer.
 3. Yeni şablonlardan birkaçını dene: Kesişen daire, Pul, Kıvrım, Sekiz köşe, Balıksırtı, Altıgen + kare. Hücreleri boya; komşuları taşmamalı.
 4. Daire'yi seç, paneli kapat, birkaç hücre boya. Paneli açıp Altıgen'i seç: tuval boşalır. Adadaki **geri al** (ya da Ctrl+Z):
    Daire boyamasıyla geri gelir; panelde Daire seçili görünür.
 5. Klavye: tuvale Tab ile gel, Sekizgen'de ok tuşları ve Page Down / Home / End / Page Up ile gez, Enter ile boya.
-5b. Boşluk ile kaydırma: adadaki + düğmesine ya da bir şablona tıkla, paneli kapat; sonra Boşluk'u basılı tutup tuvali sürükle:
+   5b. Boşluk ile kaydırma: adadaki + düğmesine ya da bir şablona tıkla, paneli kapat; sonra Boşluk'u basılı tutup tuvali sürükle:
    ızgara kaymalı, panel açılmamalı. Tab ile bir ayraca gelip Boşluk'a basınca ise panel açılmalı.
 6. Mobil: geliştirici araçlarında 375px genişlik + dokunma; alttaki **Şablonlar** ayracı, panel kayar ve adanın altında kalmaz.
 7. Testler: `npm test` (Windows'ta `C:\...` büyük harfli yoldan), `npm run lint`, `npm run build`.

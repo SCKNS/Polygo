@@ -9,7 +9,13 @@ import type { Cell, Point } from "../types";
 export const TRIANGLE_HEIGHT = Math.sqrt(3) / 2;
 
 // Yay kısaltması: merkez (cx, cy), yarıçap r, from° -> to°.
-export function arc(cx: number, cy: number, r: number, from: number, to: number): Arc {
+export function arc(
+  cx: number,
+  cy: number,
+  r: number,
+  from: number,
+  to: number,
+): Arc {
   return { center: [cx, cy], r, from, to };
 }
 
@@ -32,24 +38,46 @@ export function midpoint([ax, ay]: Point, [bx, by]: Point): Point {
 }
 
 // Sol üst köşesi (x, y) olan w × h dikdörtgen hücre.
-export function rect(id: string, x: number, y: number, w: number, h: number): Cell {
-  return shape(id, [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]);
+export function rect(
+  id: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): Cell {
+  return shape(id, [
+    [x, y],
+    [x + w, y],
+    [x + w, y + h],
+    [x, y + h],
+  ]);
 }
 
 // Merkezi (cx, cy), genişliği w olan sivri tepeli altıgenin köşeleri: tepeden başlayıp saat yönünde.
 export function hexagonPoints(cx: number, cy: number, w = 1): Point[] {
   const s = w / Math.sqrt(3); // altıgenin kenarı
   return [
-    [cx, cy - s], [cx + w / 2, cy - s / 2], [cx + w / 2, cy + s / 2],
-    [cx, cy + s], [cx - w / 2, cy + s / 2], [cx - w / 2, cy - s / 2],
+    [cx, cy - s],
+    [cx + w / 2, cy - s / 2],
+    [cx + w / 2, cy + s / 2],
+    [cx, cy + s],
+    [cx - w / 2, cy + s / 2],
+    [cx - w / 2, cy - s / 2],
   ];
 }
 
 // Bal peteği karosundaki iki altıgenin merkezi (altıgen genişliği w; karo w × w√3):
 // karonun üst ortası ve yarım altıgen sağa kaymış alt sırası.
-export function hexagonCenters(col: number, row: number, w = 1): [Point, Point] {
+export function hexagonCenters(
+  col: number,
+  row: number,
+  w = 1,
+): [Point, Point] {
   const s = w / Math.sqrt(3);
   const x = col * w;
   const y = row * 3 * s;
-  return [[x + w / 2, y + s], [x + w, y + 2.5 * s]];
+  return [
+    [x + w / 2, y + s],
+    [x + w, y + 2.5 * s],
+  ];
 }

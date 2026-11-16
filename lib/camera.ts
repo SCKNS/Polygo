@@ -2,7 +2,11 @@ import type { Point, WorldRange } from "./templates";
 
 // Kamera: ekranın ortasındaki dünya noktası (x, y; birim = bir kare kenarı) ve yakınlaştırma.
 // Yakınlaştırma 1 iken bir kare UNIT_PX piksel görünür.
-export type Camera = { readonly x: number; readonly y: number; readonly zoom: number };
+export type Camera = {
+  readonly x: number;
+  readonly y: number;
+  readonly zoom: number;
+};
 // Tuvalin ekrandaki boyutu (piksel).
 export type Size = { readonly width: number; readonly height: number };
 // Tuvalin sol üst köşesine göre piksel konumu.
@@ -29,21 +33,41 @@ function pixelsPerUnit(camera: Camera): number {
 
 export function toWorld(camera: Camera, size: Size, point: ScreenPoint): Point {
   const scale = pixelsPerUnit(camera);
-  return [camera.x + (point.x - size.width / 2) / scale, camera.y + (point.y - size.height / 2) / scale];
+  return [
+    camera.x + (point.x - size.width / 2) / scale,
+    camera.y + (point.y - size.height / 2) / scale,
+  ];
 }
 
-export function toScreen(camera: Camera, size: Size, [x, y]: Point): ScreenPoint {
+export function toScreen(
+  camera: Camera,
+  size: Size,
+  [x, y]: Point,
+): ScreenPoint {
   const scale = pixelsPerUnit(camera);
-  return { x: (x - camera.x) * scale + size.width / 2, y: (y - camera.y) * scale + size.height / 2 };
+  return {
+    x: (x - camera.x) * scale + size.width / 2,
+    y: (y - camera.y) * scale + size.height / 2,
+  };
 }
 
 // Yakınlaştırmayı değiştirir; ekranda `from` noktasının altındaki dünya noktası `to` noktasına gelir.
 // from = to: o nokta yerinde kalır (fare tekeri). from ≠ to: iki parmak aynı anda hem yakınlaştırır hem kaydırır.
-export function zoomCamera(camera: Camera, size: Size, nextZoom: number, from: ScreenPoint, to: ScreenPoint): Camera {
+export function zoomCamera(
+  camera: Camera,
+  size: Size,
+  nextZoom: number,
+  from: ScreenPoint,
+  to: ScreenPoint,
+): Camera {
   const [worldX, worldY] = toWorld(camera, size, from);
   const zoom = clampZoom(nextZoom);
   const scale = UNIT_PX * zoom;
-  return { zoom, x: worldX - (to.x - size.width / 2) / scale, y: worldY - (to.y - size.height / 2) / scale };
+  return {
+    zoom,
+    x: worldX - (to.x - size.width / 2) / scale,
+    y: worldY - (to.y - size.height / 2) / scale,
+  };
 }
 
 // Görüşü ekran pikseli kadar kaydırır (dx > 0: sağa bakar, içerik sola kayar).
@@ -55,7 +79,10 @@ export function panCamera(camera: Camera, dx: number, dy: number): Camera {
 // Ekranda görünen (kısmen de olsa) kareleri kapsayan aralık, RANGE_CHUNK katlarına genişletilmiş.
 export function visibleRange(camera: Camera, size: Size): WorldRange {
   const [left, top] = toWorld(camera, size, { x: 0, y: 0 });
-  const [right, bottom] = toWorld(camera, size, { x: size.width, y: size.height });
+  const [right, bottom] = toWorld(camera, size, {
+    x: size.width,
+    y: size.height,
+  });
   return {
     left: Math.floor(left / RANGE_CHUNK) * RANGE_CHUNK,
     top: Math.floor(top / RANGE_CHUNK) * RANGE_CHUNK,

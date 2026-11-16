@@ -1,15 +1,35 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import {
-  cellAt, cellCenter, cellsInView, outlinePath, type Cell, type Template,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
+import {
+  cellAt,
+  cellCenter,
+  cellsInView,
+  outlinePath,
+  type Cell,
+  type Template,
 } from "@/lib/templates";
 import { findNeighborCell, type Direction } from "@/lib/templates/neighbors";
 import { usePaintStore } from "@/lib/paintStore";
 import { useViewStore } from "@/lib/viewStore";
 import {
-  panCamera, toScreen, toViewBox, toWorld, visibleRange, zoomCamera, ZOOM_STEP,
-  type ScreenPoint, type Size,
+  panCamera,
+  toScreen,
+  toViewBox,
+  toWorld,
+  visibleRange,
+  zoomCamera,
+  ZOOM_STEP,
+  type ScreenPoint,
+  type Size,
 } from "@/lib/camera";
 
 type CanvasProps = {
@@ -23,6 +43,17 @@ const SAMPLE_STEP_PX = 3;
 const FOCUS_MARGIN_PX = 48;
 // Teker satır cinsinden kaydırırsa (Firefox) satır başına piksel.
 const LINE_HEIGHT_PX = 16;
+
+const COLOR_NAMES: Record<string, string> = {
+  "#1f2230": "mürekkep",
+  "#d9482b": "kiremit",
+  "#f2b134": "hardal",
+  "#2e7d6b": "yosun",
+  "#3a5ba0": "çivit",
+  "#8c5e9e": "erik",
+  "#9a9384": "taş",
+  "#ffffff": "beyaz",
+};
 
 // Ok tuşları ve çaprazlar. Çapraz tuşlar sayısal tuş takımının düzenidir (7 Home ↖, 9 PageUp ↗, 1 End ↙, 3 PageDown ↘);
 // bazı şablonlarda (Sekizgen, Daire...) köşe parçalarına yalnız çaprazdan gidilir.
@@ -47,7 +78,20 @@ function distance(a: ScreenPoint, b: ScreenPoint): number {
 
 // Boşluk tuşunun kendi işi olan öğeler (düğme, yazı alanı...): orada Boşluk kaydırma aracı olmaz.
 function isControl(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && target.closest("button, input, textarea, select, [contenteditable]") !== null;
+  return (
+    target instanceof HTMLElement &&
+    target.closest("button, input, textarea, select, [contenteditable]") !==
+      null
+  );
+}
+
+function readableNumber(value: number): string {
+  return String(Math.round(value * 100) / 100).replace(".", ",");
+}
+
+export function describeCell(cell: Cell): string {
+  const [x, y] = cellCenter(cell);
+  return `yatay ${readableNumber(x)}, dikey ${readableNumber(y)} konumundaki hücre`;
 }
 
 export function Canvas({ template }: CanvasProps) {
@@ -64,7 +108,10 @@ export function Canvas({ template }: CanvasProps) {
   const [size, setSize] = useState<Size | null>(null);
   // Klavyeyle seçilen hücre, seçildiği şablonla birlikte: şablon değişince eski seçim geçersizdir
   // (aynı id başka şablonda başka bir hücre olabilir).
-  const [focusedCell, setFocused] = useState<{ template: Template; cell: Cell } | null>(null);
+  const [focusedCell, setFocused] = useState<{
+    template: Template;
+    cell: Cell;
+  } | null>(null);
   const setFocusedCell = (cell: Cell) => setFocused({ template, cell });
   // Ekrana değen parmaklar/fare: pointerId -> son konum (tuvale göre).
   const pointers = useRef(new Map<number, ScreenPoint>());
@@ -75,12 +122,18 @@ export function Canvas({ template }: CanvasProps) {
   // Boşluk basılı mı (çizim programlarındaki "el aracı") ve bu basışta kaydırma yapıldı mı?
   const spaceHeld = useRef(false);
   const spaceUsedForPan = useRef(false);
+  const instructionsId = useId();
+  const summaryId = useId();
+  const statusId = useId();
 
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
     const observer = new ResizeObserver(([entry]) => {
-      setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      setSize({
+        width: entry.contentRect.width,
+        height: entry.contentRect.height,
+      });
     });
     observer.observe(svg);
 
@@ -93,8 +146,19 @@ export function Canvas({ template }: CanvasProps) {
       const { camera: current, setCamera: update } = useViewStore.getState();
       const unit = event.deltaMode === 1 ? LINE_HEIGHT_PX : 1;
       if (event.ctrlKey || event.metaKey) {
-        const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-        update(zoomCamera(current, box, current.zoom * Math.exp(-event.deltaY * unit * 0.01), point, point));
+        const point = {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        };
+        update(
+          zoomCamera(
+            current,
+            box,
+            current.zoom * Math.exp(-event.deltaY * unit * 0.01),
+            point,
+            point,
+          ),
+        );
       } else if (event.shiftKey && event.deltaX === 0) {
         update(panCamera(current, event.deltaY * unit, 0)); // Shift + teker: yatay
       } else {
@@ -124,7 +188,11 @@ export function Canvas({ template }: CanvasProps) {
         return;
       }
       if (isControl(event.target)) {
-        if (!lastInputWasPointer || !(event.target instanceof HTMLButtonElement)) return;
+        if (
+          !lastInputWasPointer ||
+          !(event.target instanceof HTMLButtonElement)
+        )
+          return;
         event.target.blur(); // fareyle odaklanmış düğme: Boşluk onu tetiklemesin, el aracı olsun
       }
       event.preventDefault(); // sayfa kaymasın
@@ -157,17 +225,38 @@ export function Canvas({ template }: CanvasProps) {
   }, []);
 
   // Görünen kareler RANGE_CHUNK katlarına yuvarlandığından, kaydırırken liste yalnız aralık değişince yeniden üretilir.
-  const { left, top, right, bottom } = size ? visibleRange(camera, size) : { left: 0, top: 0, right: 0, bottom: 0 };
+  const { left, top, right, bottom } = size
+    ? visibleRange(camera, size)
+    : { left: 0, top: 0, right: 0, bottom: 0 };
   const cells = useMemo(
     () => cellsInView(template, { left, top, right, bottom }),
     [template, left, top, right, bottom],
   );
   const lines = useMemo(() => outlinePath(cells), [cells]);
-  const paintedCells = useMemo(() => cells.filter((cell) => fills[cell.id]), [cells, fills]);
+  const paintedCells = useMemo(
+    () => cells.filter((cell) => fills[cell.id]),
+    [cells, fills],
+  );
 
   // Kullanıcı henüz hücre seçmediyse klavye odağı ekranın ortasındaki hücrededir.
-  const focused = focusedCell?.template === template ? focusedCell.cell : cellAt(template, [camera.x, camera.y]);
+  const focused =
+    focusedCell?.template === template
+      ? focusedCell.cell
+      : cellAt(template, [camera.x, camera.y]);
   const paintedCount = Object.keys(fills).length;
+  const colorSummary = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const color of Object.values(fills))
+      counts.set(color, (counts.get(color) ?? 0) + 1);
+    if (counts.size === 0) return "Çizim henüz boş.";
+    const groups = [...counts.entries()].map(
+      ([color, count]) => `${COLOR_NAMES[color] ?? color}: ${count}`,
+    );
+    return `${paintedCount} boyalı hücre. Renk dağılımı: ${groups.join(", ")}.`;
+  }, [fills, paintedCount]);
+  const focusedStatus = focused
+    ? `${describeCell(focused)} seçili; ${fills[focused.id] ? (COLOR_NAMES[fills[focused.id]] ?? fills[focused.id]) : "boş"}.`
+    : "Seçili hücre yok.";
 
   function localPoint(event: PointerEvent<SVGSVGElement>): ScreenPoint {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -176,7 +265,10 @@ export function Canvas({ template }: CanvasProps) {
 
   function cellUnder(point: ScreenPoint): Cell | null {
     if (!size) return null;
-    return cellAt(template, toWorld(useViewStore.getState().camera, size, point));
+    return cellAt(
+      template,
+      toWorld(useViewStore.getState().camera, size, point),
+    );
   }
 
   // İki konum arasındaki çizginin geçtiği hücrelerin id'leri, sırasıyla (başlangıç noktası hariç, art arda tekrar yok).
@@ -185,7 +277,10 @@ export function Canvas({ template }: CanvasProps) {
     const ids: string[] = [];
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
-      const id = cellUnder({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t })?.id;
+      const id = cellUnder({
+        x: from.x + (to.x - from.x) * t,
+        y: from.y + (to.y - from.y) * t,
+      })?.id;
       if (id && ids[ids.length - 1] !== id) ids.push(id);
     }
     return ids;
@@ -209,7 +304,10 @@ export function Canvas({ template }: CanvasProps) {
       // İkinci parmak geldi: bu bir yakınlaştırma/kaydırma; ilk parmağın boyadığı geri alınır.
       cancelStroke();
       const [a, b] = [...pointers.current.values()];
-      pinch.current = { distance: distance(a, b), zoom: useViewStore.getState().camera.zoom };
+      pinch.current = {
+        distance: distance(a, b),
+        zoom: useViewStore.getState().camera.zoom,
+      };
       return;
     }
     if (pointers.current.size > 2 || pinch.current) return;
@@ -229,14 +327,26 @@ export function Canvas({ template }: CanvasProps) {
     const view = useViewStore.getState().camera;
 
     if (panning.current) {
-      setCamera(panCamera(view, previous.x - current.x, previous.y - current.y));
+      setCamera(
+        panCamera(view, previous.x - current.x, previous.y - current.y),
+      );
       return;
     }
     if (pinch.current) {
       if (pointers.current.size !== 2) return;
-      const other = [...pointers.current.entries()].find(([id]) => id !== event.pointerId)![1];
+      const other = [...pointers.current.entries()].find(
+        ([id]) => id !== event.pointerId,
+      )![1];
       const scale = distance(current, other) / pinch.current.distance;
-      setCamera(zoomCamera(view, size, pinch.current.zoom * scale, midpoint(previous, other), midpoint(current, other)));
+      setCamera(
+        zoomCamera(
+          view,
+          size,
+          pinch.current.zoom * scale,
+          midpoint(previous, other),
+          midpoint(current, other),
+        ),
+      );
       return;
     }
 
@@ -290,7 +400,11 @@ export function Canvas({ template }: CanvasProps) {
     const view = useViewStore.getState().camera;
     const center = cellCenter(cell);
     const { x, y } = toScreen(view, size, center);
-    const inside = x > FOCUS_MARGIN_PX && x < size.width - FOCUS_MARGIN_PX && y > FOCUS_MARGIN_PX && y < size.height - FOCUS_MARGIN_PX;
+    const inside =
+      x > FOCUS_MARGIN_PX &&
+      x < size.width - FOCUS_MARGIN_PX &&
+      y > FOCUS_MARGIN_PX &&
+      y < size.height - FOCUS_MARGIN_PX;
     if (!inside) setCamera({ ...view, x: center[0], y: center[1] });
   }
 
@@ -332,27 +446,69 @@ export function Canvas({ template }: CanvasProps) {
 
   return (
     <div className="canvas-area">
-      <svg ref={svgRef} className="drawing-canvas" viewBox={size ? toViewBox(camera, size) : undefined}
+      <p className="sr-only" id={instructionsId}>
+        Ok tuşlarıyla komşu hücrelere, Home, Page Up, End ve Page Down ile
+        çapraz hücrelere git. Enter veya Boşluk seçili hücreyi boyar; aynı renge
+        yeniden basmak siler. Artı ve eksi yakınlaştırır. Boşluğu basılı tutup
+        fareyle sürüklemek çizimi kaydırır.
+      </p>
+      <p className="sr-only" id={summaryId}>
+        {colorSummary}
+      </p>
+      <svg
+        ref={svgRef}
+        className="drawing-canvas"
+        viewBox={size ? toViewBox(camera, size) : undefined}
         preserveAspectRatio="none"
-        tabIndex={0} role="application" aria-roledescription="çizim tuvali"
-        aria-label={`${template.name} şablonu, sınırsız ızgara: ${paintedCount} boyalı hücre. Ok tuşlarıyla hücre seç (çapraz için Home, Page Up, End, Page Down), Enter ya da Boşluk ile boya; aynı renge tekrar basmak siler. Artı ve eksi yakınlaştırır. Boşluğu basılı tutup fareyle sürüklemek kaydırır.`}
-        onPointerDown={handlePointerDown} onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} onLostPointerCapture={handleLostCapture}
-        onKeyDown={handleKeyDown} onKeyUp={handleKeyUp}>
+        tabIndex={0}
+        role="application"
+        aria-roledescription="çizim tuvali"
+        aria-label={`${template.name} şablonunda sınırsız çizim alanı`}
+        aria-describedby={`${instructionsId} ${summaryId} ${statusId}`}
+        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Home PageUp End PageDown Enter Space + -"
+        data-focused-cell={focused?.id}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onLostPointerCapture={handleLostCapture}
+        onKeyDown={handleKeyDown}
+        onKeyUp={handleKeyUp}
+      >
         {/* Yalnız boyalı hücreler çizilir; boş hücre şeffaftır ve hangi hücreye dokunulduğu geometriyle bulunur. */}
         <g className="canvas-cells">
           {paintedCells.map((cell) => (
-            <path key={cell.id} data-cell-id={cell.id} d={cell.d} style={{ fill: fills[cell.id] }} />
+            <path
+              key={cell.id}
+              data-cell-id={cell.id}
+              d={cell.d}
+              style={{ fill: fills[cell.id] }}
+            />
           ))}
         </g>
-        <path className="canvas-lines" d={lines} vectorEffect="non-scaling-stroke" aria-hidden="true" />
+        <path
+          className="canvas-lines"
+          d={lines}
+          vectorEffect="non-scaling-stroke"
+          aria-hidden="true"
+        />
         {/* Klavye odağı: yalnız tuval klavyeyle odaklanınca görünür (CSS). */}
         {focused && (
-          <path className="cell-focus" d={focused.d} vectorEffect="non-scaling-stroke" />
+          <path
+            className="cell-focus"
+            d={focused.d}
+            vectorEffect="non-scaling-stroke"
+          />
         )}
       </svg>
-      <p className="sr-only" aria-live="polite">
-        {focused ? `Seçili hücre ${focused.id}: ${fills[focused.id] ?? "boş"}` : ""}
+      <p
+        className="sr-only"
+        id={statusId}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {focusedStatus}
       </p>
     </div>
   );

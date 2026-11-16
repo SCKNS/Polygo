@@ -3,10 +3,20 @@ import { TEMPLATES, cellsInTiles, getTemplate } from "./index";
 import { findNeighbor, findNeighborCell, type Direction } from "./neighbors";
 
 const DIRECTIONS: Direction[] = ["up", "down", "left", "right"];
-const ALL_DIRECTIONS: Direction[] = [...DIRECTIONS, "upLeft", "upRight", "downLeft", "downRight"];
+const ALL_DIRECTIONS: Direction[] = [
+  ...DIRECTIONS,
+  "upLeft",
+  "upRight",
+  "downLeft",
+  "downRight",
+];
 
 // Sonlu listede ilk hücreden verilen yönlerle gezinerek ulaşılan hücreler.
-function reachable(cells: readonly { id: string }[], find: (id: string, direction: Direction) => string | null, directions: Direction[]) {
+function reachable(
+  cells: readonly { id: string }[],
+  find: (id: string, direction: Direction) => string | null,
+  directions: Direction[],
+) {
   const seen = new Set([cells[0].id]);
   const queue = [cells[0].id];
   while (queue.length > 0) {
@@ -49,16 +59,30 @@ describe("ok tuşlarıyla komşu hücre (sonlu liste)", () => {
       // taradığından 8×8 karoluk parça binlerce hücreyle saniyeler sürer.
       const crowded = template.cellsInTile(0, 0).length > 8;
       const cells = cellsInTiles(template, crowded ? SMALL_PIECE : PIECE);
-      const seen = reachable(cells, (id, direction) => findNeighbor(cells, id, direction), ALL_DIRECTIONS);
+      const seen = reachable(
+        cells,
+        (id, direction) => findNeighbor(cells, id, direction),
+        ALL_DIRECTIONS,
+      );
       expect(seen.size).toBe(cells.length);
     });
   }
 
   // Basit şablonlarda çapraz tuşlar gerekmez: dört ok yeter.
-  for (const id of ["square", "diagonal", "cross", "triangle", "hexagon"] as const) {
+  for (const id of [
+    "square",
+    "diagonal",
+    "cross",
+    "triangle",
+    "hexagon",
+  ] as const) {
     it(`${getTemplate(id).name} şablonunda dört ok tuşu yeter`, () => {
       const cells = cellsInTiles(getTemplate(id), PIECE);
-      const seen = reachable(cells, (cellId, direction) => findNeighbor(cells, cellId, direction), DIRECTIONS);
+      const seen = reachable(
+        cells,
+        (cellId, direction) => findNeighbor(cells, cellId, direction),
+        DIRECTIONS,
+      );
       expect(seen.size).toBe(cells.length);
     });
   }
@@ -78,7 +102,10 @@ describe("ok tuşlarıyla komşu hücre (sınırsız ızgara)", () => {
     it(`${template.name}: her hücrenin dört yönde de komşusu var`, () => {
       for (const cell of template.cellsInTile(-1, -1)) {
         for (const direction of DIRECTIONS) {
-          expect(findNeighborCell(template, cell, direction), `${cell.id} ${direction}`).not.toBeNull();
+          expect(
+            findNeighborCell(template, cell, direction),
+            `${cell.id} ${direction}`,
+          ).not.toBeNull();
         }
       }
     });

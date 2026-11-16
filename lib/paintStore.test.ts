@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { normalizeColor, PRESET_COLORS, pushRecent, RECENT_LIMIT, usePaintStore } from "./paintStore";
+import {
+  normalizeColor,
+  PRESET_COLORS,
+  pushRecent,
+  RECENT_LIMIT,
+  sanitizePersistedState,
+  usePaintStore,
+} from "./paintStore";
 
 const initialState = usePaintStore.getState();
 const store = () => usePaintStore.getState();
@@ -165,9 +172,57 @@ describe("renk yardımcıları", () => {
   });
 
   it("pushRecent tekrarı siler ve sınırı korur", () => {
-    const many = ["#000001", "#000002", "#000003", "#000004", "#000005", "#000006"];
-    expect(pushRecent(many, "#000003")).toEqual(["#000003", "#000001", "#000002", "#000004", "#000005", "#000006"]);
+    const many = [
+      "#000001",
+      "#000002",
+      "#000003",
+      "#000004",
+      "#000005",
+      "#000006",
+    ];
+    expect(pushRecent(many, "#000003")).toEqual([
+      "#000003",
+      "#000001",
+      "#000002",
+      "#000004",
+      "#000005",
+      "#000006",
+    ]);
     expect(pushRecent(many, "#000007")).toHaveLength(RECENT_LIMIT);
     expect(pushRecent(many, "#000007")[0]).toBe("#000007");
+  });
+});
+
+describe("kalıcı kayıt", () => {
+  it("geçerli çizim, şablon ve renk tercihlerini geri yükler", () => {
+    expect(
+      sanitizePersistedState({
+        templateId: "circle",
+        fills: { "0-0-center": "#D9482B", "-2--3": "#1F2230" },
+        color: "#2E7D6B",
+        recentColors: ["#D9482B", "#d9482b", "#fff"],
+      }),
+    ).toEqual({
+      templateId: "circle",
+      fills: { "0-0-center": "#d9482b", "-2--3": "#1f2230" },
+      color: "#2e7d6b",
+      recentColors: ["#d9482b", "#ffffff"],
+    });
+  });
+
+  it("bozuk veya eski kayıtları güvenli varsayılanlara düşürür", () => {
+    expect(
+      sanitizePersistedState({
+        templateId: "silinmis-sablon",
+        fills: { "0-0": "red", "<script>": "#ffffff", "1-2-a": "#abc" },
+        color: "bozuk",
+        recentColors: [null, "red"],
+      }),
+    ).toEqual({
+      templateId: "square",
+      fills: { "1-2-a": "#aabbcc" },
+      color: PRESET_COLORS[0],
+      recentColors: [],
+    });
   });
 });

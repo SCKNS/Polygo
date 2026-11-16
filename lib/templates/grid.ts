@@ -55,7 +55,8 @@ export function containsPoint(points: readonly Point[], point: Point): boolean {
     const [xi, yi] = points[i];
     const [xj, yj] = points[j];
     if (onSegment(point, points[j], points[i])) return true;
-    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi)
+      inside = !inside;
   }
   return inside;
 }
@@ -79,16 +80,29 @@ export function cellCenter(cell: Pick<Cell, "points">): Point {
 }
 
 // Noktanın düştüğü karo.
-export function tileOf(template: Template, [x, y]: Point): { col: number; row: number } {
-  return { col: Math.floor(x / template.tile.width), row: Math.floor(y / template.tile.height) };
+export function tileOf(
+  template: Template,
+  [x, y]: Point,
+): { col: number; row: number } {
+  return {
+    col: Math.floor(x / template.tile.width),
+    row: Math.floor(y / template.tile.height),
+  };
 }
 
 // Dünya koordinatındaki noktanın altındaki hücre. Önce noktanın karosu, sonra taşan hücreler için çevresindeki
 // 8 karo aranır; ızgara sınırsız olsa da hızlıdır. İki hücrenin ortak kenarındaki nokta önce bulunana düşer.
 export function cellAt(template: Template, point: Point): Cell | null {
   const { col, row } = tileOf(template, point);
-  const own = template.cellsInTile(col, row).find((cell) => containsPoint(cell.points, point));
+  const own = template
+    .cellsInTile(col, row)
+    .find((cell) => containsPoint(cell.points, point));
   if (own) return own;
-  const around = cellsInTiles(template, { left: col - 1, top: row - 1, right: col + 2, bottom: row + 2 });
+  const around = cellsInTiles(template, {
+    left: col - 1,
+    top: row - 1,
+    right: col + 2,
+    bottom: row + 2,
+  });
   return around.find((cell) => containsPoint(cell.points, point)) ?? null;
 }

@@ -1,0 +1,7 @@
+.next/
+.vercel/
+node_modules/
+tmp/
+docs/screenshots/
+docs/SOURCE.md
+package-lock.json

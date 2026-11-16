@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  clampZoom, MAX_ZOOM, MIN_ZOOM, panCamera, toScreen, toViewBox, toWorld, UNIT_PX, visibleRange, zoomCamera,
+  clampZoom,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  panCamera,
+  toScreen,
+  toViewBox,
+  toWorld,
+  UNIT_PX,
+  visibleRange,
+  zoomCamera,
   type Camera,
 } from "./camera";
 
@@ -46,14 +55,21 @@ describe("kamera", () => {
   });
 
   it("kaydırma ekran pikselini dünya birimine çevirir", () => {
-    const next = panCamera(CAMERA, UNIT_PX * CAMERA.zoom, -UNIT_PX * CAMERA.zoom * 2);
+    const next = panCamera(
+      CAMERA,
+      UNIT_PX * CAMERA.zoom,
+      -UNIT_PX * CAMERA.zoom * 2,
+    );
     expect(next).toEqual({ x: 3, y: -5, zoom: 1.5 });
   });
 
   it("görünür aralık ekranın tamamını kapsar ve 4'ün katlarına yuvarlanır", () => {
     const range = visibleRange(CAMERA, SIZE);
     const [left, top] = toWorld(CAMERA, SIZE, { x: 0, y: 0 });
-    const [right, bottom] = toWorld(CAMERA, SIZE, { x: SIZE.width, y: SIZE.height });
+    const [right, bottom] = toWorld(CAMERA, SIZE, {
+      x: SIZE.width,
+      y: SIZE.height,
+    });
     expect(range.left).toBeLessThanOrEqual(left);
     expect(range.top).toBeLessThanOrEqual(top);
     expect(range.right).toBeGreaterThanOrEqual(right);
@@ -63,6 +79,8 @@ describe("kamera", () => {
 
   it("viewBox görünen dünya dikdörtgenidir", () => {
     const scale = UNIT_PX * CAMERA.zoom;
-    expect(toViewBox(CAMERA, SIZE)).toBe(`${2 - 400 / scale} ${-3 - 300 / scale} ${800 / scale} ${600 / scale}`);
+    expect(toViewBox(CAMERA, SIZE)).toBe(
+      `${2 - 400 / scale} ${-3 - 300 / scale} ${800 / scale} ${600 / scale}`,
+    );
   });
 });

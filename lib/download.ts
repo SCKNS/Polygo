@@ -40,13 +40,25 @@ export function paintedCells(template: Template, fills: Fills): Cell[] {
 }
 
 function escapeXml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;",
-  })[character]!);
+  return value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&apos;",
+      })[character]!,
+  );
 }
 
 function safeFilename(value: string): string {
-  const plain = value.replace(/ı/g, "i").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const plain = value
+    .replace(/ı/g, "i")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
   return plain.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "desen";
 }
 
@@ -100,14 +112,21 @@ export function createExportArtwork(
   const backgroundRect = background
     ? `<rect x="${number(left)}" y="${number(top)}" width="${number(worldWidth)}" height="${number(worldHeight)}" fill="${escapeXml(background)}"/>`
     : "";
-  const paths = [...pathsByColor.entries()].map(([color, data]) => {
-    const safeColor = escapeXml(color);
-    return `<path d="${data.join("")}" fill="${safeColor}" stroke="${safeColor}" stroke-width="${EXPORT_SEAM_OVERLAP}" stroke-linejoin="round" paint-order="stroke fill"/>`;
-  }).join("");
+  const paths = [...pathsByColor.entries()]
+    .map(([color, data]) => {
+      const safeColor = escapeXml(color);
+      return `<path d="${data.join("")}" fill="${safeColor}" stroke="${safeColor}" stroke-width="${EXPORT_SEAM_OVERLAP}" stroke-linejoin="round" paint-order="stroke fill"/>`;
+    })
+    .join("");
   const title = `${template.name} deseni`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${number(left)} ${number(top)} ${number(worldWidth)} ${number(worldHeight)}" preserveAspectRatio="xMidYMid meet"><title>${escapeXml(title)}</title>${backgroundRect}${paths}</svg>`;
 
-  return { svg, width, height, filename: `polygo-${safeFilename(template.name)}` };
+  return {
+    svg,
+    width,
+    height,
+    filename: `polygo-${safeFilename(template.name)}`,
+  };
 }
 
 function saveBlob(blob: Blob, filename: string): void {
@@ -123,11 +142,16 @@ function saveBlob(blob: Blob, filename: string): void {
 }
 
 export function downloadSvg(artwork: ExportArtwork): void {
-  saveBlob(new Blob([artwork.svg], { type: "image/svg+xml;charset=utf-8" }), `${artwork.filename}.svg`);
+  saveBlob(
+    new Blob([artwork.svg], { type: "image/svg+xml;charset=utf-8" }),
+    `${artwork.filename}.svg`,
+  );
 }
 
 export async function downloadPng(artwork: ExportArtwork): Promise<void> {
-  const source = URL.createObjectURL(new Blob([artwork.svg], { type: "image/svg+xml;charset=utf-8" }));
+  const source = URL.createObjectURL(
+    new Blob([artwork.svg], { type: "image/svg+xml;charset=utf-8" }),
+  );
   try {
     const image = new Image();
     image.decoding = "async";
@@ -143,13 +167,20 @@ export async function downloadPng(artwork: ExportArtwork): Promise<void> {
     context.imageSmoothingQuality = "high";
     context.drawImage(image, 0, 0, artwork.width, artwork.height);
 
-    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
-      (result) => result ? resolve(result) : reject(new Error("PNG dosyası oluşturulamadı.")),
-      "image/png",
-    ));
-    saveBlob(blob, `${artwork.filename}-${artwork.width}x${artwork.height}.png`);
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(
+        (result) =>
+          result
+            ? resolve(result)
+            : reject(new Error("PNG dosyası oluşturulamadı.")),
+        "image/png",
+      ),
+    );
+    saveBlob(
+      blob,
+      `${artwork.filename}-${artwork.width}x${artwork.height}.png`,
+    );
   } finally {
     URL.revokeObjectURL(source);
   }
 }
-

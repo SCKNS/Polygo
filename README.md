@@ -1,6 +1,17 @@
 # Polygo
 
-Sıcak kâğıt tonlarında, geometrik logo aracının ilk ekranı. Bu aşamada yalnızca arayüz kabuğu vardır: sekmeler ve paneller çalışır; çizim, şablon değiştirme ve indirme henüz uygulanmaz.
+Polygo, tekrar eden geometrik ızgaralarda hücreleri boyayarak logo ve desen üretmeye yarayan Türkçe bir web uygulamasıdır. Çizim alanı her yönde sınırsızdır; çalışma SVG veya şeffaf/renkli PNG olarak indirilebilir.
+
+## Özellikler
+
+- Dört grupta 42 geometrik şablon
+- Fare, dokunma ve klavyeyle hücre boyama
+- Serbest renk seçici, hazır ve son kullanılan renkler
+- Geri al, yinele ve temizle
+- Kaydırılabilir ve %100–%400 yakınlaştırılabilir sonsuz ızgara
+- Yalnız boyalı alanı kırpan, kayıpsız SVG ve 1024/2048/4096 px PNG indirme
+- Çizimi, şablonu ve renk tercihlerini tarayıcıda otomatik saklama
+- Masaüstü ve mobil düzen; azaltılmış hareket tercihi ve klavye kullanımı desteği
 
 ## Çalıştırma
 
@@ -11,55 +22,47 @@ npm ci
 npm run dev
 ```
 
-Windows PowerShell betik yürütmesini engelliyorsa `npm.cmd` kullanın. `http://localhost:3000` adresini açın. İlk derleme Google Fonts erişimi gerektirir; fontlar daha sonra Next.js tarafından yerel sunulur.
+Windows PowerShell betik yürütmesini engelliyorsa `npm.cmd` kullanın. Uygulama varsayılan olarak `http://localhost:3000` adresindedir.
+
+## Kalite kontrolleri
 
 ```sh
+npm test
 npm run lint
 npm run build
-npm start
 ```
 
-## Dosya ağacı
+Gerçek tarayıcı sürüm testi kayıt, erişilebilir açıklamalar ve indirilen SVG/PNG dosyalarını birlikte doğrular:
+
+```sh
+npm run build
+npm run start -- -p 3123
+chrome --headless=new --remote-debugging-port=9233 --user-data-dir=<geçici-klasör> about:blank
+npm run verify:release -- <geçici-indirme-klasörü>
+```
+
+Boyama/kamera ve bütün şablonların ayrıntılı Chrome testleri sırasıyla `scripts/verify-paint.mjs` ve `scripts/verify-templates.mjs` içindedir.
+
+## Kullanım
+
+- Sağdaki, mobilde alttaki **Şablonlar** ayracından desen seçin.
+- Hücrelere tıklayın veya sürükleyin. Aynı renkle boyalı hücreye yeniden basmak siler.
+- Tekerleği kaydırmak, `Ctrl/Cmd + teker` yakınlaştırmak için kullanılır. Boşluk basılıyken sürüklemek de görünümü kaydırır.
+- Klavyede oklar ve çapraz yönler için `Home`, `Page Up`, `End`, `Page Down`; boyamak için `Enter` veya `Boşluk` kullanılır.
+- **İndir** panelinden arka planı ve PNG boyutunu seçin. Çıktı yalnız boyalı alanı kapsar.
+- Çalışma her değişiklikte bu tarayıcının `localStorage` alanına kaydedilir ve sayfa yenilendiğinde geri yüklenir.
+
+## Yapı
 
 ```text
-app/
-  globals.css          renkler, düzen, hareket ve mobil kurallar
-  layout.tsx           Türkçe dil, metadata ve next/font
-  page.tsx             ilk ekran
-components/
-  Notebook.tsx         yalnızca açık panel durumu ve sayfa düzeni
-  Spiral.tsx           SVG cilt telleri
-  WordMark.tsx         el yazısı ve altıgen
-  ToolBar.tsx          pasif araçlar
-  Canvas.tsx           statik 9×9 örnek
-  Tabs.tsx             sekmeler ve ok tuşları
-  Panel.tsx            panel içeriği, odak ve kapatma
-docs/
-  PROGRESS.md          adım durumu
-  REVIEW.md            doğrulama ve inceleme notları
-  SOURCE.md            kaynak dosyaların tam kodu
-  review_diff.patch    yerel inceleme farkı; Git'e alınmaz
-.gitignore
-eslint.config.mjs
-postcss.config.mjs
-tsconfig.json
-package.json
-package-lock.json
-README.md
+app/                    Next.js App Router sayfası, metadata ve stiller
+components/             tuval, araç adası, paneller ve şablon seçici
+lib/templates/          geometri modeli, 42 şablon ve testleri
+lib/paintStore.ts       boyama, geçmiş ve güvenli yerel kayıt
+lib/download.ts         kırpılmış SVG/PNG üretimi
+lib/camera.ts           kaydırma/yakınlaştırma hesapları
+scripts/                gerçek Chrome doğrulama betikleri
+docs/                   ilerleme, inceleme notları ve ekran görüntüleri
 ```
 
-`next-env.d.ts`, `.next/` ve `node_modules/` otomatik üretilir. Yeni create-next-app projesinde aynı adlı kaynak/config dosyalarını buradakilerle değiştirin; başka bir UI paketi gerekmez.
-
-## Tasarım kararları
-
-- Caveat el yazısı, DM Sans küçük arayüz metinleri için seçildi. Her ikisi `latin-ext` ile yüklenir.
-- Renkler briefteki paletle sınırlı. Küçük metinlerde AA kontrastı için tam mürekkep rengi kullanıldı; soluk ton büyük el yazısı ve çizgilerde kaldı.
-- Statik P işareti, çizim alanının ne işe yarayacağını anlatır. Açılış yaklaşık 1,6 saniye sürer; sürekli animasyon yoktur.
-- Masaüstünde sağ ayraçlar, mobilde alt şeritler ve üst spiral kullanılır. Mobil tuval genişliği 320px ekranda 264px, 375px ekranda 319px olur.
-- Boyama, indirme, renk seçimi ve geri alma bilinçli olarak bu adımın dışındadır. Yeni durum kütüphanesi eklenmedi.
-
-## İnceleme
-
-320px, 375×812 ve 1440×900 boyutlarında kontrol edin. Sekmeye tıklayın, aynı sekmeyle kapatın; ok tuşları, Home/End, Tab/Shift+Tab, Escape ve dışarı tıklamayı deneyin. Mobilde paneli aşağı kaydırın. İşletim sisteminde hareketi azaltmayı açarak tekrar kontrol edin.
-
-Bu oturumda tarayıcı bağlantısı olmadığı için ekran görüntüsü ve görsel Türkçe glif kontrolü doğrulanamadı. Derleme ve lint sonuçları `docs/REVIEW.md` içindedir.
+Teknik kararlar ve doğrulama özeti [docs/PROGRESS.md](docs/PROGRESS.md) ile [docs/REVIEW.md](docs/REVIEW.md) dosyalarındadır.

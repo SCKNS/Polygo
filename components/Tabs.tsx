@@ -17,11 +17,27 @@ type TabsProps = {
 
 export function Tabs({ activePanel, onChange }: TabsProps) {
   function navigate(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    const keys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"];
+    const keys = [
+      "ArrowRight",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowUp",
+      "Home",
+      "End",
+    ];
     if (!keys.includes(event.key)) return;
     event.preventDefault();
-    const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? 2
-      : (index + (event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1) + 3) % 3;
+    const nextIndex =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? 2
+          : (index +
+              (event.key === "ArrowRight" || event.key === "ArrowDown"
+                ? 1
+                : -1) +
+              3) %
+            3;
     const next = panelTabs[nextIndex].id;
     onChange(next);
     document.getElementById(`tab-${next}`)?.focus();
@@ -39,7 +55,9 @@ export function Tabs({ activePanel, onChange }: TabsProps) {
           data-active={activePanel === id}
           aria-selected={activePanel === id}
           aria-controls={`panel-${id}`}
-          tabIndex={activePanel === id || (!activePanel && index === 0) ? 0 : -1}
+          tabIndex={
+            activePanel === id || (!activePanel && index === 0) ? 0 : -1
+          }
           onClick={() => onChange(activePanel === id ? null : id)}
           onKeyDown={(event) => navigate(event, index)}
         >

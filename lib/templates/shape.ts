@@ -3,7 +3,12 @@ import type { Cell, Point } from "./types";
 // Hücre sınırının bir parçası: ya bir köşe noktası (oraya düz çizgi) ya da bir yay.
 // Yay, merkezi ve yarıçapı verilen dairenin from açısından to açısına giden parçasıdır.
 // Açılar derecedir ve ekran yönündedir: 0° sağ, 90° aşağı (SVG'de y aşağı doğru artar).
-export type Arc = { readonly center: Point; readonly r: number; readonly from: number; readonly to: number };
+export type Arc = {
+  readonly center: Point;
+  readonly r: number;
+  readonly from: number;
+  readonly to: number;
+};
 export type Segment = Point | Arc;
 
 // Yaylar bu açı adımıyla kısa doğru parçalarına bölünür (yarıçap 0.5 için çeyrek daire = 12 parça).
@@ -27,8 +32,13 @@ function pointOnArc({ center: [cx, cy], r }: Arc, deg: number): Point {
 // Yayın noktaları; iki uç da dahil. Büyük yaylar daha çok parçaya bölünür.
 function arcPoints(arc: Arc): Point[] {
   const { r, from, to } = arc;
-  const segments = Math.max(1, Math.round((Math.abs(to - from) / ARC_STEP_DEG) * Math.max(1, r * 2)));
-  return Array.from({ length: segments + 1 }, (_, i) => pointOnArc(arc, from + ((to - from) * i) / segments));
+  const segments = Math.max(
+    1,
+    Math.round((Math.abs(to - from) / ARC_STEP_DEG) * Math.max(1, r * 2)),
+  );
+  return Array.from({ length: segments + 1 }, (_, i) =>
+    pointOnArc(arc, from + ((to - from) * i) / segments),
+  );
 }
 
 function samePoint(a: Point, b: Point): boolean {
@@ -50,7 +60,10 @@ function arcCommands(arc: Arc): string {
   const sweep = arc.to > arc.from ? 1 : 0;
   if (Math.abs(arc.to - arc.from) > 180) {
     const middle = (arc.from + arc.to) / 2;
-    return arcCommands({ ...arc, to: middle }) + arcCommands({ ...arc, from: middle });
+    return (
+      arcCommands({ ...arc, to: middle }) +
+      arcCommands({ ...arc, from: middle })
+    );
   }
   return `A${round(arc.r)} ${round(arc.r)} 0 0 ${sweep} ${xy(pointOnArc(arc, arc.to))}`;
 }
@@ -60,11 +73,13 @@ function toPoints(segments: readonly Segment[]): Point[] {
   const points: Point[] = [];
   for (const segment of segments) {
     for (const point of isArc(segment) ? arcPoints(segment) : [segment]) {
-      if (points.length === 0 || !samePoint(points[points.length - 1], point)) points.push(point);
+      if (points.length === 0 || !samePoint(points[points.length - 1], point))
+        points.push(point);
     }
   }
   // Son nokta ilkinin tekrarıysa (tam daire gibi) atılır; çokgen zaten kapalıdır.
-  if (points.length > 1 && samePoint(points[0], points[points.length - 1])) points.pop();
+  if (points.length > 1 && samePoint(points[0], points[points.length - 1]))
+    points.pop();
   return points;
 }
 
@@ -103,7 +118,12 @@ export function mirrorX(segments: readonly Segment[], ox: number): Segment[] {
   return segments.map((segment) => {
     if (!isArc(segment)) return [2 * ox + 1 - segment[0], segment[1]];
     const [cx, cy] = segment.center;
-    return { ...segment, center: [2 * ox + 1 - cx, cy], from: 180 - segment.from, to: 180 - segment.to };
+    return {
+      ...segment,
+      center: [2 * ox + 1 - cx, cy],
+      from: 180 - segment.from,
+      to: 180 - segment.to,
+    };
   });
 }
 
@@ -112,6 +132,11 @@ export function mirrorY(segments: readonly Segment[], oy: number): Segment[] {
   return segments.map((segment) => {
     if (!isArc(segment)) return [segment[0], 2 * oy + 1 - segment[1]];
     const [cx, cy] = segment.center;
-    return { ...segment, center: [cx, 2 * oy + 1 - cy], from: -segment.from, to: -segment.to };
+    return {
+      ...segment,
+      center: [cx, 2 * oy + 1 - cy],
+      from: -segment.from,
+      to: -segment.to,
+    };
   });
 }

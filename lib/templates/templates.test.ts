@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { cellCenter, cellsInTiles, getTemplate, TEMPLATES, type Cell, type Point, type TemplateId } from "./index";
+import {
+  cellCenter,
+  cellsInTiles,
+  getTemplate,
+  TEMPLATES,
+  type Cell,
+  type Point,
+  type TemplateId,
+} from "./index";
 import { containsPoint } from "./grid";
 
 // Kayan nokta hataları için tolerans. Testler örneklemesizdir: her köşe ve kenar hesaplanır.
@@ -21,7 +29,11 @@ function signedArea(points: readonly Point[]): number {
 }
 
 // p noktası, a-b doğrusunun hangi yanında? (+ / - / ~0 aynı doğru üzerinde)
-function orientation([ax, ay]: Point, [bx, by]: Point, [px, py]: Point): number {
+function orientation(
+  [ax, ay]: Point,
+  [bx, by]: Point,
+  [px, py]: Point,
+): number {
   return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
 }
 
@@ -37,7 +49,10 @@ function onSegment(p: Point, a: Point, b: Point): boolean {
 }
 
 // İki doğru parçası birbirini tam ortadan kesiyor mu (değme ve üst üste binme sayılmaz)?
-function segmentsCross([a1, a2]: [Point, Point], [b1, b2]: [Point, Point]): boolean {
+function segmentsCross(
+  [a1, a2]: [Point, Point],
+  [b1, b2]: [Point, Point],
+): boolean {
   const d1 = orientation(b1, b2, a1);
   const d2 = orientation(b1, b2, a2);
   const d3 = orientation(a1, a2, b1);
@@ -50,7 +65,13 @@ function segmentsCross([a1, a2]: [Point, Point], [b1, b2]: [Point, Point]): bool
 
 // İki doğru parçası kesişiyor ya da birbirine değiyor mu?
 function segmentsTouch(a: [Point, Point], b: [Point, Point]): boolean {
-  return segmentsCross(a, b) || onSegment(a[0], ...b) || onSegment(a[1], ...b) || onSegment(b[0], ...a) || onSegment(b[1], ...a);
+  return (
+    segmentsCross(a, b) ||
+    onSegment(a[0], ...b) ||
+    onSegment(a[1], ...b) ||
+    onSegment(b[0], ...a) ||
+    onSegment(b[1], ...a)
+  );
 }
 
 // Basit çokgen mi? Komşu olmayan hiçbir kenar çifti kesişmemeli ya da değmemeli.
@@ -94,7 +115,10 @@ function interiorsOverlap(a: readonly Point[], b: readonly Point[]): boolean {
       if (segmentsCross(edgeAt(a, i), edgeAt(b, j))) return true;
     }
   }
-  return probePoints(a).some((p) => strictlyInside(b, p)) || probePoints(b).some((p) => strictlyInside(a, p));
+  return (
+    probePoints(a).some((p) => strictlyInside(b, p)) ||
+    probePoints(b).some((p) => strictlyInside(a, p))
+  );
 }
 
 // Karo başına beklenen hücre sayıları sabit: bir değişiklik id'leri/kayıtları bozarsa test kırılır.
@@ -148,7 +172,10 @@ const EXPECTED_CELLS_PER_TILE: Record<TemplateId, number> = {
 const REGION = { left: -3, top: -3, right: 3, bottom: 3 };
 // Örtüşme, bu iki karonun hücreleri ile bölgedeki bütün hücreler arasında sınanır. Hücreler en fazla bir karo
 // taştığından, bu karoların hücrelerine değebilecek her hücre bölgenin içindedir.
-const CHECKED_TILES: [number, number][] = [[0, 0], [-1, -1]];
+const CHECKED_TILES: [number, number][] = [
+  [0, 0],
+  [-1, -1],
+];
 
 for (const template of TEMPLATES) {
   describe(`${template.name} şablonu`, () => {
@@ -156,7 +183,9 @@ for (const template of TEMPLATES) {
     const cells = cellsInTiles(template, REGION);
 
     it("her karoda beklenen sayıda hücre var", () => {
-      expect(template.cellsInTile(0, 0).length).toBe(EXPECTED_CELLS_PER_TILE[template.id]);
+      expect(template.cellsInTile(0, 0).length).toBe(
+        EXPECTED_CELLS_PER_TILE[template.id],
+      );
     });
 
     it("hücre id'leri bölgede benzersiz (negatif koordinatlar dahil)", () => {
@@ -167,7 +196,9 @@ for (const template of TEMPLATES) {
     // id karo koordinatıyla başlar: boyama kaydı, hücre ekranda nerede çizilirse çizilsin aynı hücreyi bulur.
     it("id'ler karonun koordinatıyla başlar", () => {
       for (const cell of template.cellsInTile(-2, 5)) {
-        expect(cell.id === "-2-5" || cell.id.startsWith("-2-5-"), cell.id).toBe(true);
+        expect(cell.id === "-2-5" || cell.id.startsWith("-2-5-"), cell.id).toBe(
+          true,
+        );
       }
     });
 
@@ -179,15 +210,27 @@ for (const template of TEMPLATES) {
             // Art arda iki köşe aynı olmamalı (sıfır uzunlukta kenar).
             cell.points.forEach((_, i) => {
               const [[x1, y1], [x2, y2]] = edgeAt(cell.points, i);
-              expect(Math.hypot(x2 - x1, y2 - y1), cell.id).toBeGreaterThan(EPSILON);
+              expect(Math.hypot(x2 - x1, y2 - y1), cell.id).toBeGreaterThan(
+                EPSILON,
+              );
             });
             expect(isSimple(cell.points), cell.id).toBe(true);
-            expect(strictlyInside(cell.points, cellCenter(cell)), cell.id).toBe(true);
+            expect(strictlyInside(cell.points, cellCenter(cell)), cell.id).toBe(
+              true,
+            );
             for (const [px, py] of cell.points) {
-              expect(px, cell.id).toBeGreaterThanOrEqual((col - 1) * width - EPSILON);
-              expect(px, cell.id).toBeLessThanOrEqual((col + 2) * width + EPSILON);
-              expect(py, cell.id).toBeGreaterThanOrEqual((row - 1) * height - EPSILON);
-              expect(py, cell.id).toBeLessThanOrEqual((row + 2) * height + EPSILON);
+              expect(px, cell.id).toBeGreaterThanOrEqual(
+                (col - 1) * width - EPSILON,
+              );
+              expect(px, cell.id).toBeLessThanOrEqual(
+                (col + 2) * width + EPSILON,
+              );
+              expect(py, cell.id).toBeGreaterThanOrEqual(
+                (row - 1) * height - EPSILON,
+              );
+              expect(py, cell.id).toBeLessThanOrEqual(
+                (row + 2) * height + EPSILON,
+              );
             }
           }
         }
@@ -199,7 +242,10 @@ for (const template of TEMPLATES) {
         for (const cell of template.cellsInTile(col, row)) {
           for (const other of cells) {
             if (other.id === cell.id) continue;
-            expect(interiorsOverlap(cell.points, other.points), `${cell.id} / ${other.id}`).toBe(false);
+            expect(
+              interiorsOverlap(cell.points, other.points),
+              `${cell.id} / ${other.id}`,
+            ).toBe(false);
           }
         }
       }
@@ -207,7 +253,9 @@ for (const template of TEMPLATES) {
 
     // Desen karodan karoya tekrar eder: karo başına alan karonun alanına eşitse ve hücreler örtüşmüyorsa boşluk da yoktur.
     it("bir karonun hücre alanları toplamı karonun alanına eşit (boşluk yok)", () => {
-      const total = template.cellsInTile(0, 0).reduce((sum, cell) => sum + Math.abs(signedArea(cell.points)), 0);
+      const total = template
+        .cellsInTile(0, 0)
+        .reduce((sum, cell) => sum + Math.abs(signedArea(cell.points)), 0);
       expect(total).toBeCloseTo(width * height, 9);
     });
   });
@@ -215,13 +263,36 @@ for (const template of TEMPLATES) {
 
 // Yardımcıların kendisi de sınanır: yanlış bir yardımcı, bozuk şablonu geçirebilir.
 describe("geometri yardımcıları", () => {
-  const square = (x: number, y: number, size = 1): Point[] => [[x, y], [x + size, y], [x + size, y + size], [x, y + size]];
+  const square = (x: number, y: number, size = 1): Point[] => [
+    [x, y],
+    [x + size, y],
+    [x + size, y + size],
+    [x, y + size],
+  ];
   // Beş köşeli yıldız: kenarları kendini keser.
-  const star: Point[] = [[2, 0], [3.2, 3.6], [0, 1.4], [4, 1.4], [0.8, 3.6]];
+  const star: Point[] = [
+    [2, 0],
+    [3.2, 3.6],
+    [0, 1.4],
+    [4, 1.4],
+    [0.8, 3.6],
+  ];
   // Kelebek (papyon): kendini kesen dörtgen.
-  const bowtie: Point[] = [[0, 0], [1, 1], [1, 0], [0, 1]];
+  const bowtie: Point[] = [
+    [0, 0],
+    [1, 1],
+    [1, 0],
+    [0, 1],
+  ];
   // İçbükey L biçimi: sağ üstteki 1×1 boşluğa bir kare tam oturur.
-  const lShape: Point[] = [[0, 0], [1, 0], [1, 1], [2, 1], [2, 2], [0, 2]];
+  const lShape: Point[] = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [2, 1],
+    [2, 2],
+    [0, 2],
+  ];
 
   it("kare ve içbükey L basit kabul edilir; yıldız ve kelebek reddedilir", () => {
     expect(isSimple(square(0, 0))).toBe(true);
@@ -240,8 +311,18 @@ describe("geometri yardımcıları", () => {
     expect(interiorsOverlap(square(0, 0), square(0.5, 0.5))).toBe(true);
     expect(interiorsOverlap(square(0, 0, 3), square(1, 1))).toBe(true); // tamamen içinde
     expect(interiorsOverlap(square(0, 0), square(0, 0))).toBe(true); // birebir aynı
-    const wide: Point[] = [[0, 1], [3, 1], [3, 2], [0, 2]];
-    const tall: Point[] = [[1, 0], [2, 0], [2, 3], [1, 3]];
+    const wide: Point[] = [
+      [0, 1],
+      [3, 1],
+      [3, 2],
+      [0, 2],
+    ];
+    const tall: Point[] = [
+      [1, 0],
+      [2, 0],
+      [2, 3],
+      [1, 3],
+    ];
     expect(interiorsOverlap(wide, tall)).toBe(true); // hiçbir köşe diğerinin içinde değil
     expect(interiorsOverlap(lShape, square(0.5, 0.5))).toBe(true);
   });
@@ -266,18 +347,35 @@ describe("getTemplate", () => {
 // Yay parçaları kısa doğrulardan oluşur; komşu hücreler aynı yayı aynı köşelerle paylaşmalı, yoksa arada kıl payı boşluk kalır.
 describe("yaylı şablonlar", () => {
   function vertexSet(cells: readonly Cell[]): Set<string> {
-    return new Set(cells.flatMap((cell) => cell.points.map(([x, y]) => `${x.toFixed(9)},${y.toFixed(9)}`)));
+    return new Set(
+      cells.flatMap((cell) =>
+        cell.points.map(([x, y]) => `${x.toFixed(9)},${y.toFixed(9)}`),
+      ),
+    );
   }
 
   // Çizilen yol (d) ile isabet testindeki çokgen (points) aynı parçalardan üretilir; yolun her uç noktası çokgenin köşesidir.
   for (const template of TEMPLATES) {
     it(`${template.name}: çizim yolunun uç noktaları hücrenin köşeleri`, () => {
-      for (const cell of cellsInTiles(template, { left: -1, top: -1, right: 1, bottom: 1 })) {
-        expect(cell.d.startsWith("M") && cell.d.endsWith("Z"), cell.id).toBe(true);
-        const ends = [...cell.d.matchAll(/(?:[ML]|A[\d.]+ [\d.]+ 0 [01] [01] )(-?[\d.]+) (-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+      for (const cell of cellsInTiles(template, {
+        left: -1,
+        top: -1,
+        right: 1,
+        bottom: 1,
+      })) {
+        expect(cell.d.startsWith("M") && cell.d.endsWith("Z"), cell.id).toBe(
+          true,
+        );
+        const ends = [
+          ...cell.d.matchAll(
+            /(?:[ML]|A[\d.]+ [\d.]+ 0 [01] [01] )(-?[\d.]+) (-?[\d.]+)/g,
+          ),
+        ].map((m) => [Number(m[1]), Number(m[2])]);
         expect(ends.length, cell.id).toBeGreaterThanOrEqual(3);
         for (const [x, y] of ends) {
-          const found = cell.points.some(([px, py]) => Math.abs(px - x) < 1e-4 && Math.abs(py - y) < 1e-4);
+          const found = cell.points.some(
+            ([px, py]) => Math.abs(px - x) < 1e-4 && Math.abs(py - y) < 1e-4,
+          );
           expect(found, `${cell.id}: ${x},${y}`).toBe(true);
         }
       }
@@ -292,7 +390,16 @@ describe("yaylı şablonlar", () => {
   it("Daire: köşe parçalarının yay köşeleri dairenin köşeleriyle aynı", () => {
     const [circle, ...corners] = getTemplate("circle").cellsInTile(0, 0);
     const circleVertices = vertexSet([circle]);
-    const cornerVertices = [...vertexSet(corners)].filter((key) => !["0.000000000,0.000000000", "1.000000000,0.000000000", "0.000000000,1.000000000", "1.000000000,1.000000000"].includes(key));
-    for (const key of cornerVertices) expect(circleVertices.has(key), key).toBe(true);
+    const cornerVertices = [...vertexSet(corners)].filter(
+      (key) =>
+        ![
+          "0.000000000,0.000000000",
+          "1.000000000,0.000000000",
+          "0.000000000,1.000000000",
+          "1.000000000,1.000000000",
+        ].includes(key),
+    );
+    for (const key of cornerVertices)
+      expect(circleVertices.has(key), key).toBe(true);
   });
 });

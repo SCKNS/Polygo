@@ -6,14 +6,22 @@ describe("dışa aktarma", () => {
   it("görüşten bağımsız olarak negatif koordinattaki boyalı hücreleri yeniden üretir", () => {
     const template = getTemplate("square");
     const fills = { "-2--3": "#d9482b", "4-5": "#1f2230" };
-    expect(paintedCells(template, fills).map((cell) => cell.id)).toEqual(["-2--3", "4-5"]);
+    expect(paintedCells(template, fills).map((cell) => cell.id)).toEqual([
+      "-2--3",
+      "4-5",
+    ]);
   });
 
   it("yalnız boyalı alanın çevresine kırpar ve şeffaf SVG üretir", () => {
-    const artwork = createExportArtwork(getTemplate("square"), {
-      "0-0": "#d9482b",
-      "1-0": "#d9482b",
-    }, null, 2048);
+    const artwork = createExportArtwork(
+      getTemplate("square"),
+      {
+        "0-0": "#d9482b",
+        "1-0": "#d9482b",
+      },
+      null,
+      2048,
+    );
 
     expect(artwork).not.toBeNull();
     expect(artwork!.width).toBe(2048);
@@ -24,10 +32,15 @@ describe("dışa aktarma", () => {
   });
 
   it("seçilen arka planı ekler, renkleri ayrı birleşik yollarda tutar", () => {
-    const artwork = createExportArtwork(getTemplate("square"), {
-      "0-0": "#d9482b",
-      "1-0": "#1f2230",
-    }, "#ffffff", 1024)!;
+    const artwork = createExportArtwork(
+      getTemplate("square"),
+      {
+        "0-0": "#d9482b",
+        "1-0": "#1f2230",
+      },
+      "#ffffff",
+      1024,
+    )!;
 
     expect(artwork.svg).toContain('<rect x="');
     expect(artwork.svg).toContain('fill="#ffffff"');
@@ -38,4 +51,3 @@ describe("dışa aktarma", () => {
     expect(createExportArtwork(getTemplate("square"), {}, null)).toBeNull();
   });
 });
-

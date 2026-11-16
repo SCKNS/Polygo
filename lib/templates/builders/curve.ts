@@ -7,8 +7,15 @@ import { arc, coinFlip, isOdd } from "./common";
 // Bir hücrenin adı ve sınır parçaları; aynalanacak builder'lar parçaları önce böyle toplar.
 type Part = [string, Segment[]];
 
-function placeParts(prefix: string, parts: Part[], mirror: boolean, x: number): Cell[] {
-  return parts.map(([name, segments]) => shape(`${prefix}-${name}`, mirror ? mirrorX(segments, x) : segments));
+function placeParts(
+  prefix: string,
+  parts: Part[],
+  mirror: boolean,
+  x: number,
+): Cell[] {
+  return parts.map(([name, segments]) =>
+    shape(`${prefix}-${name}`, mirror ? mirrorX(segments, x) : segments),
+  );
 }
 
 // Kareye teğet daire + dört içbükey köşe parçası.
@@ -38,9 +45,15 @@ export function cloverCells(x: number, y: number): readonly Cell[] {
     { name: "ne", from: 270, corner: [x + 1, y] },
   ];
   return quarters.flatMap(({ name, from, corner }) => [
-    shape(`${prefix}-${name}-slice`, [center, arc(cx, cy, 0.5, from, from + 90)]),
+    shape(`${prefix}-${name}-slice`, [
+      center,
+      arc(cx, cy, 0.5, from, from + 90),
+    ]),
     shape(`${prefix}-${name}-a`, [corner, arc(cx, cy, 0.5, from + 45, from)]),
-    shape(`${prefix}-${name}-b`, [corner, arc(cx, cy, 0.5, from + 90, from + 45)]),
+    shape(`${prefix}-${name}-b`, [
+      corner,
+      arc(cx, cy, 0.5, from + 90, from + 45),
+    ]),
   ]);
 }
 
@@ -67,7 +80,15 @@ export function flowerCells(x: number, y: number): readonly Cell[] {
 function quarterArcParts(x: number, y: number): Part[] {
   return [
     ["nw", [[x, y], arc(x, y, 0.5, 0, 90)]],
-    ["band", [[x + 1, y], arc(x + 1, y + 1, 0.5, 270, 180), [x, y + 1], arc(x, y, 0.5, 90, 0)]],
+    [
+      "band",
+      [
+        [x + 1, y],
+        arc(x + 1, y + 1, 0.5, 270, 180),
+        [x, y + 1],
+        arc(x, y, 0.5, 90, 0),
+      ],
+    ],
     ["se", [[x + 1, y + 1], arc(x + 1, y + 1, 0.5, 180, 270)]],
   ];
 }
@@ -109,8 +130,14 @@ export function fanCells(x: number, y: number): readonly Cell[] {
   const [r1, r2, r3] = [1 / 3, 2 / 3, 1];
   return [
     shape(`${prefix}-inner`, [[cx, cy], arc(cx, cy, r1, 270, 360)]),
-    shape(`${prefix}-middle`, [arc(cx, cy, r2, 270, 360), arc(cx, cy, r1, 360, 270)]),
-    shape(`${prefix}-outer`, [arc(cx, cy, r3, 270, 360), arc(cx, cy, r2, 360, 270)]),
+    shape(`${prefix}-middle`, [
+      arc(cx, cy, r2, 270, 360),
+      arc(cx, cy, r1, 360, 270),
+    ]),
+    shape(`${prefix}-outer`, [
+      arc(cx, cy, r3, 270, 360),
+      arc(cx, cy, r2, 360, 270),
+    ]),
     shape(`${prefix}-corner`, [[x + 1, y], arc(cx, cy, r3, 360, 270)]),
   ];
 }
@@ -145,7 +172,10 @@ function scale(id: string, cx: number, cy: number): Cell {
 
 // Karoda iki pul sırası (her biri yarım birim yüksek); alttaki sıra yarım pul sağa kayar.
 export function scalesCells(x: number, y: number): readonly Cell[] {
-  return [scale(`${x}-${y}-a`, x + 0.5, y + 0.5), scale(`${x}-${y}-b`, x + 1, y + 1)];
+  return [
+    scale(`${x}-${y}-a`, x + 0.5, y + 0.5),
+    scale(`${x}-${y}-b`, x + 1, y + 1),
+  ];
 }
 
 // Kemer: karenin alt kenarına oturan yarım daire ve üstündeki ters U. Tek satırlar yarım kare kayar (tuğla dizilişi).
@@ -154,8 +184,16 @@ export function archCells(x: number, y: number): readonly Cell[] {
   const cx = left + 0.5;
   return [
     // Kubbe iki çeyrek yay: tek yay olsa yolda yalnız iki uç nokta kalırdı.
-    shape(`${x}-${y}-dome`, [arc(cx, y + 1, 0.5, 180, 270), arc(cx, y + 1, 0.5, 270, 360)]),
-    shape(`${x}-${y}-arch`, [[left, y], [left + 1, y], [left + 1, y + 1], arc(cx, y + 1, 0.5, 360, 180)]),
+    shape(`${x}-${y}-dome`, [
+      arc(cx, y + 1, 0.5, 180, 270),
+      arc(cx, y + 1, 0.5, 270, 360),
+    ]),
+    shape(`${x}-${y}-arch`, [
+      [left, y],
+      [left + 1, y],
+      [left + 1, y + 1],
+      arc(cx, y + 1, 0.5, 360, 180),
+    ]),
   ];
 }
 

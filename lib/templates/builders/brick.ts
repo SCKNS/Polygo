@@ -5,19 +5,37 @@ import { isOdd, rect } from "./common";
 
 // Tuğla duvar (karo 1×1): iki sıra, alttaki sıra yarım taş kayar.
 export function brickCells(x: number, y: number): readonly Cell[] {
-  return [rect(`${x}-${y}-a`, x, y, 1, 0.5), rect(`${x}-${y}-b`, x + 0.5, y + 0.5, 1, 0.5)];
+  return [
+    rect(`${x}-${y}-a`, x, y, 1, 0.5),
+    rect(`${x}-${y}-b`, x + 0.5, y + 0.5, 1, 0.5),
+  ];
 }
 
 // Merdiven (karo 1×2): dört sıra tuğla, her sıra bir öncekinden çeyrek taş sağa kayar; taşlar çapraz basamaklar çizer.
 export function stairCells(col: number, row: number): readonly Cell[] {
-  return [0, 1, 2, 3].map((step) => rect(`${col}-${row}-${step}`, col + step * 0.25, row * 2 + step * 0.5, 1, 0.5));
+  return [0, 1, 2, 3].map((step) =>
+    rect(
+      `${col}-${row}-${step}`,
+      col + step * 0.25,
+      row * 2 + step * 0.5,
+      1,
+      0.5,
+    ),
+  );
 }
 
 // Hasır örgü (karo 1×1): her karede iki taş; komşu karelerde taşlar yatay ve dikey sırayla değişir.
 export function basketCells(x: number, y: number): readonly Cell[] {
   const prefix = `${x}-${y}`;
-  if (isOdd(x + y)) return [rect(`${prefix}-a`, x, y, 0.5, 1), rect(`${prefix}-b`, x + 0.5, y, 0.5, 1)];
-  return [rect(`${prefix}-a`, x, y, 1, 0.5), rect(`${prefix}-b`, x, y + 0.5, 1, 0.5)];
+  if (isOdd(x + y))
+    return [
+      rect(`${prefix}-a`, x, y, 0.5, 1),
+      rect(`${prefix}-b`, x + 0.5, y, 0.5, 1),
+    ];
+  return [
+    rect(`${prefix}-a`, x, y, 1, 0.5),
+    rect(`${prefix}-b`, x, y + 0.5, 1, 0.5),
+  ];
 }
 
 // Balıksırtı (karo 2×2): yatay ve dikey taşlar çapraz bir merdiven gibi dizilir. Merdivenin her basamağı yarım birim
@@ -36,7 +54,13 @@ export function herringboneCells(col: number, row: number): readonly Cell[] {
 
 // İki boy kare (Pisagor döşemesi; karo 2.5×2.5): her büyük karenin (1×1) sağ üst köşesine küçük bir kare (0.5×0.5)
 // yaslanır. Büyük kareler (1, 0.5) ve (-0.5, 1) adımlarıyla dizilir; bu adımlarla karoya beş büyük kare düşer.
-const PYTHAGOREAN_OFFSETS: readonly [number, number][] = [[0, 0], [1, 0.5], [2, 1], [0.5, 1.5], [1.5, 2]];
+const PYTHAGOREAN_OFFSETS: readonly [number, number][] = [
+  [0, 0],
+  [1, 0.5],
+  [2, 1],
+  [0.5, 1.5],
+  [1.5, 2],
+];
 
 export function pythagoreanCells(col: number, row: number): readonly Cell[] {
   const x = col * 2.5;

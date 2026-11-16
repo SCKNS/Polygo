@@ -8,6 +8,8 @@
 - `scripts/verify-release.mjs`, gerçek Chrome 157 üzerinde geçti: hücre boyama `localStorage`'a yazıldı, tam sayfa yenilemesinden
   sonra geri geldi; tuvalin erişilebilir adı, konum/renk canlı açıklaması ve çizim özeti doğrulandı; gerçek şeffaf SVG ile
   1024×1024 PNG dosyaları indirildi ve dosya içerikleri/imzaları okundu.
+- Production dağıtımı `dpl_6WrJ6hs1eLdq5KWrm1HcadqSSnTX` Vercel'de `READY` oldu ve `https://polygo-app.vercel.app`
+  alias'ına bağlandı. Deployment Protection arkasından yetkili istekle uygulama HTML'si ve metadata doğrulandı.
 - Kayıt yalnız şablon, boyama, seçili renk ve son renkleri saklar. Geri-al/yinele geçmişi ve yarım fırça hareketi saklanmaz.
   Bozuk/eski kayıtlar `sanitizePersistedState` ile doğrulanır ve güvenli varsayılanlara düşer.
 

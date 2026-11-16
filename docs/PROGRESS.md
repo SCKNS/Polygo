@@ -3,9 +3,9 @@
 ## Durum
 
 - Şu anki adım: Adım 8 — cila, erişilebilirlik ve yayın
-- Durum: YEREL DOĞRULAMA TAMAMLANDI
+- Durum: TAMAMLANDI VE PRODUCTION'A YAYINLANDI
 - Son doğrulama: 476 birim testi, ESLint, Next.js production build ve gerçek Chrome sürüm testi temiz
-- Yayın: Vercel projesi bağlı; son sürüm dağıtımı ve canlı adres kontrolü bu değişikliklerin gönderilmesinden sonra yapılacak
+- Yayın: `https://polygo-app.vercel.app` — Vercel deployment `dpl_6WrJ6hs1eLdq5KWrm1HcadqSSnTX`, durum `READY`
 
 ## Adım planı
 
@@ -25,7 +25,7 @@ Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki
    Kullanıcı isteği (videodaki gibi): farklı geometrik şekillerin birleşiminden oluşan desenler (daire, yay, altıgen, üçgen, sekizgen...).
 6. ✅ **İndirme:** SVG ve şeffaf PNG (arka plan rengi seçilebilir ya da şeffaf), hücre arası çizgi sorunu çözülür.
 7. ✅ **Kayıt:** Çalışma localStorage'da saklanır, sayfa yenilenince geri gelir.
-8. ⏳ **Cila ve yayın:** Testler (Vitest), erişilebilirlik ve README tamamlandı; Vercel canlı dağıtım kontrolü kaldı.
+8. ✅ **Cila ve yayın:** Testler (Vitest), erişilebilirlik, README ve Vercel production dağıtımı tamamlandı.
 
 ## Bilinen kararlar / açık sorular
 

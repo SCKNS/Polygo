@@ -2,6 +2,8 @@
 
 Polygo, tekrar eden geometrik ızgaralarda hücreleri boyayarak logo ve desen üretmeye yarayan Türkçe bir web uygulamasıdır. Çizim alanı her yönde sınırsızdır; çalışma SVG veya şeffaf/renkli PNG olarak indirilebilir.
 
+Production: [polygo-app.vercel.app](https://polygo-app.vercel.app) _(Vercel Deployment Protection etkin olabilir.)_
+
 ## Özellikler
 
 - Dört grupta 42 geometrik şablon

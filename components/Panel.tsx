@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { panelTabs, type PanelId } from "./Tabs";
 import { PRESET_COLORS, usePaintStore } from "@/lib/paintStore";
 import { TemplatePicker } from "./TemplatePicker";
+import { createExportArtwork, downloadPng, downloadSvg } from "@/lib/download";
+import { getTemplate } from "@/lib/templates";
 
 type PanelProps = { activePanel: PanelId | null; onClose: () => void };
 
@@ -44,13 +46,81 @@ function Colors() {
 }
 
 function Download() {
+  const fills = usePaintStore((state) => state.fills);
+  const templateId = usePaintStore((state) => state.templateId);
+  const [backgroundMode, setBackgroundMode] = useState<"transparent" | "color">("transparent");
+  const [backgroundColor, setBackgroundColor] = useState("#fffaf0");
+  const [pngSize, setPngSize] = useState(4096);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const empty = Object.keys(fills).length === 0;
+
+  function artwork() {
+    return createExportArtwork(
+      getTemplate(templateId),
+      fills,
+      backgroundMode === "transparent" ? null : backgroundColor,
+      pngSize,
+    );
+  }
+
+  function handleSvg() {
+    const output = artwork();
+    if (!output) return;
+    downloadSvg(output);
+    setMessage("SVG hazırlandı.");
+  }
+
+  async function handlePng() {
+    const output = artwork();
+    if (!output || busy) return;
+    setBusy(true);
+    setMessage("PNG hazırlanıyor…");
+    try {
+      await downloadPng(output);
+      setMessage(`PNG ${output.width} × ${output.height} piksel hazırlandı.`);
+    } catch {
+      setMessage("PNG hazırlanamadı. Lütfen yeniden dene.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return <>
     <p className="panel-note">kâğıttan dışarı</p>
+    <p className="download-hint">yalnız boyadığın alan, kenarlarından kırpılır.</p>
     <div className="download-options">
-      <button type="button" className="download-stamp" disabled>SVG indir <span aria-hidden="true">↗</span></button>
-      <button type="button" className="download-stamp" disabled>PNG indir <small>(şeffaf)</small> <span aria-hidden="true">↗</span></button>
+      <button type="button" className="download-stamp" disabled={empty} onClick={handleSvg}>
+        SVG indir <small>(vektör)</small> <span aria-hidden="true">↗</span>
+      </button>
+      <button type="button" className="download-stamp" disabled={empty || busy} onClick={handlePng}>
+        {busy ? "PNG hazırlanıyor…" : "PNG indir"} <small>({pngSize}px)</small> <span aria-hidden="true">↗</span>
+      </button>
     </div>
     <p className="panel-note">arka planı sen seç</p>
+    <div className="download-settings">
+      <label>
+        <span>arka plan</span>
+        <select value={backgroundMode} onChange={(event) => setBackgroundMode(event.target.value as "transparent" | "color")}>
+          <option value="transparent">şeffaf</option>
+          <option value="color">renkli</option>
+        </select>
+      </label>
+      {backgroundMode === "color" && <label>
+        <span>renk</span>
+        <input type="color" value={backgroundColor} onChange={(event) => setBackgroundColor(event.target.value)} />
+      </label>}
+      <label>
+        <span>PNG kalitesi</span>
+        <select value={pngSize} onChange={(event) => setPngSize(Number(event.target.value))}>
+          <option value="1024">1024 px</option>
+          <option value="2048">2048 px</option>
+          <option value="4096">4096 px</option>
+        </select>
+      </label>
+    </div>
+    {empty && <p className="download-status">indirmek için önce birkaç hücre boya.</p>}
+    <p className="sr-only" aria-live="polite">{message}</p>
   </>;
 }
 

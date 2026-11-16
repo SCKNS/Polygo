@@ -145,6 +145,16 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .download-stamp { display: flex; align-items: center; gap: 5px; text-align: left; }
 .download-stamp > span { margin-left: auto; font-size: 18px; }
 .download-stamp small { font-size: 10px; letter-spacing: .02em; }
+.download-stamp:not(:disabled) { cursor: pointer; transition: border-color 150ms ease, color 150ms ease; }
+.download-stamp:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+.download-stamp:disabled { opacity: .45; }
+.download-hint { margin: -15px 0 0; color: var(--ink-soft); font-size: 10px; }
+.download-settings { display: grid; gap: 11px; margin-top: 13px; }
+.download-settings label { display: grid; grid-template-columns: 1fr 122px; align-items: center; gap: 12px; }
+.download-settings label > span { font-size: 10px; letter-spacing: .08em; }
+.download-settings select { width: 100%; min-height: 36px; padding: 6px 26px 6px 9px; border: 1px solid var(--ink-line); border-radius: 2px; background: var(--paper); color: var(--ink); font: inherit; }
+.download-settings input[type="color"] { justify-self: end; width: 46px; height: 36px; padding: 3px; border: 1px solid var(--ink-line); border-radius: 2px; background: var(--paper); }
+.download-status { margin: 17px 0 0; color: var(--accent); font-family: var(--font-hand), cursive; font-size: 18px; }
 
 @keyframes desk-appear { from { opacity: 0; } to { opacity: 1; } }
 @keyframes notebook-settle { from { opacity: 0; transform: translateY(-6px) scale(.985); } to { opacity: 1; transform: none; } }

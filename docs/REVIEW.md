@@ -1,4 +1,146 @@
-# Son sürüm doğrulaması — Adım 8
+# İnceleme: Adım 8 düzeltmesi — indirilen logonun köşeleri yuvarlanıyordu (4. tur, üçüncü denetim sonrası)
+
+## Amaç
+
+Kullanıcı bildirimi: "mobilde bir logoyu indirince, örneğin Kare şablonunda, logonun köşesini yuvarlıyor; PC'de olmuyor." 2. turda köşe yuvarlanması, 3. turda miter taşması ve uzun-logo şeridi düzeltildi. Üçüncü denetim kalan asıl açığı buldu:
+indirme sınırı, yayları yaklaşık veren `cell.points`'ten hesaplanıyordu, yayın en dış noktası kırpılabiliyordu. Bu tur sınırı
+**gerçek geometriden** hesaplıyor, indirilen yolu tam hassasiyette yazıyor ve bunu `points`'e dayanmayan bağımsız bir testle
+kanıtlıyor. Ayrıca tek komutluk tarayıcı kontrolü yanlış sunucuya/Chrome'a bağlanamaz hâle geldi.
+
+## Kök neden (bu tur)
+
+1. `points` yayları 7,5°'lik doğrularla verir; yay içindeki 0°/90°/180°/270° tepe noktası örneklenmeyebilir. Kesişen daire
+   merceği (`-45°..45°`, yarıçap √2/2) 17 parçaya bölünür, 0° tepesi atlanır: sınır 0,00076 birim eksik kalıyordu.
+2. Ekran yolu `d` 4 ondalığa yuvarlıdır. Bu yol indirilen dosyaya da yazılıyordu; yuvarlanmış köşe gerçek sınırın en çok
+   ~5·10⁻⁵ birim dışına düşebiliyordu (Sekizgen köşe üçgeni). Küçük ama gerçek bir kırpılma.
+
+## Denetçi bulguları ve yanıtlar
+
+| Bulgu                                                   | Karar             | Ne yapıldı                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| O1 Gerçek SVG yayları `points` sınırının dışına çıkıyor | Doğru (ölçüldü)   | `Cell.bounds`: parçalardan tam sınır (yay uçları + aralıktaki kardinal tepe noktaları). İndirme `bounds` ve 10 ondalıklı `Cell.preciseD` kullanıyor. Bağımsız test indirilen SVG'nin yollarını SVG belirtimindeki yay formülüyle çözüyor. Kesişen daire `0-0-h`/`0-0-v` tek başına birim + tarayıcı testinde |
+| O2 Port doluysa yanlış sunucu/Chrome test edilebilir    | Doğru             | `verify:browser` başlamadan 3123 ve 9233'ün boş olduğunu dinleme denemesiyle doğruluyor; doluysa açık hata, çıkış 1. Sunucu/Chrome `error` ya da beklenmedik `exit` verirse sonuç başarısız                                                                                                                  |
+| O3 Fiziksel mobil kabul testi yok                       | Doğru, yapılamadı | Ortamımda telefon yok. README'ye üç somut vaka (tek hücre, Elmas merkezi, uzun renkli şerit) ve kayıt biçimi (cihaz/OS/tarayıcı sürümü) yazıldı. İddialar Chrome mobil emülasyonuyla sınırlı                                                                                                                 |
+| K1 "Yay uç noktası" yanlış terim                        | Doğru             | Uçlar zaten örnekleniyor; eksik kalan **yay içindeki kardinal ekstremumlar**. Kod yorumları ve belgeler buna göre                                                                                                                                                                                            |
+| K2 CDP bekleyen istekleri sonuçlandırmıyor              | Doğru             | Açılışta `error` -> red; `close`/`error`'da bütün bekleyen istekler reddediliyor; her istek 60 sn zaman aşımı; kapalı bağlantıya gönderim hemen red                                                                                                                                                          |
+| K3 Kırmızı test sayıları kalıcı kanıt değil             | Doğru             | Aşağıdaki tüm "eski kodla" sayılar **yerel mutasyon denemesi** olarak nitelendi. Kalıcı temsil: aynı hataları yakalayan birim testleri (bağımsız yol sınırı, Kesişen daire, Elmas) ve tarayıcı vakaları repoda                                                                                               |
+
+## Değişiklikler
+
+- `lib/templates/types.ts`: `Bounds` tipi; `Cell.bounds`, `Cell.preciseD`.
+- `lib/templates/shape.ts`: `toBounds` (köşeler, yay uçları, yay aralığındaki 0°/90°/180°/270° noktaları); yol üretimi ondalık
+  sayısını parametre alıyor (`SCREEN_DECIMALS = 4`, `EXPORT_DECIMALS = 10`); `preciseD` ve `bounds` ilk erişimde hesaplanıyor
+  (ekranda binlerce hücre için maliyet yok).
+- `lib/templates/index.ts`: `Bounds` tipi dışa aktarılıyor.
+- `lib/download.ts`: sınır `cell.bounds`'tan (`points` değil), yollar `cell.preciseD`'den. Pay değişmedi (`MITER_LIMIT × çizgi / 2`).
+- `lib/download.test.ts`: `pathsOf` (indirilen SVG'deki yollar) ve `drawnBounds` (SVG belirtimi F.6.5 ile yay merkezi, yay 2000
+  noktayla örnekleniyor; `points`/`bounds` kullanılmıyor). Kapsama testi artık bu gerçek yol sınırını denetliyor: 42 şablon ×
+  (karo + her hücre tek başına 5 karoda) + 2/3/13/21×1 şerit × 3 boyut. Yeni test: Kesişen daire `h`/`v` (points tepeyi kaçırır,
+  bounds yakalar, 4096 indirme kırpmaz). 481 test.
+- `scripts/verify-download.mjs`: Kesişen daire `0-0-h` ve `0-0-v` tek başına: SVG raster kırpılma ölçümü (4×) + 4096 PNG.
+- `scripts/verify-browser.mjs`: port ön kontrolü, çocuk süreç `error`/`exit` takibi, betikler bloklamadan (`spawn`) çalışıyor.
+- `scripts/cdp.mjs`: hata/kapanma/zaman aşımı yönetimi.
+- `README.md`: fiziksel cihaz kontrol listesi. `docs/PROGRESS.md`, `docs/REVIEW.md`.
+
+## Komutlar ve gerçek çıktılar
+
+PowerShell'den, son kod hâliyle:
+
+- `npm run check:release` -> çıkış kodu **0**. İçinde:
+  - `eslint .` hata/uyarı yok; `All matched files use Prettier code style!`
+  - `Test Files 6 passed (6)`, `Tests 481 passed (481)`
+  - `✓ Compiled successfully`, `✓ Generating static pages (3/3)`
+  - `verify-release: SONUÇ: tüm sürüm kontrolleri geçti`; `verify-download: SONUÇ: tüm indirme kontrolleri geçti` (77 OK, 0 HATA)
+- Testlerin 5 karoya genişletilmesinden sonra `npx vitest run` -> `481 passed`; `npx prettier --check` ve lint temiz.
+- Seçme satırlar:
+
+```
+OK   tek hücre 4096 PNG: dört köşe sivri (köşeden opak piksele: 1,1,1,1)
+OK   Kare 13×1 renkli arka plan 1024 PNG: dört kenar baştan sona opak (1024×81, kenar en düşük alfa 255/255/255/255)
+OK   Kare 21×1 renkli arka plan 2048 PNG: dört kenar baştan sona opak (2048×99, kenar en düşük alfa 255/255/255/255)
+OK   Elmas yalnız merkez: SVG çizgisi viewBox dışına taşmıyor (kırpılma yok) (dışarıda 0 boyalı piksel, en yüksek alfa 0)
+OK   Kesişen daire 0-0-h yalnız: SVG çizgisi viewBox dışına taşmıyor (kırpılma yok) (dışarıda 0 boyalı piksel, en yüksek alfa 0)
+OK   Kesişen daire 0-0-h yalnız 4096 PNG: şekil dört kenara ulaşıyor (en uzak kenar 0px)
+OK   Kesişen daire 0-0-v yalnız: SVG çizgisi viewBox dışına taşmıyor (kırpılma yok) (dışarıda 0 boyalı piksel, en yüksek alfa 0)
+OK   <42 şablonun her biri> tek hücre: kırpılma yok (0 piksel)
+```
+
+- Port koruması: 3123'ü boş bir Node dinleyicisiyle doldurup `node scripts/verify-browser.mjs` ->
+  `Port 3123 dolu. Önce o süreci kapatın (...)`, `çıkış kodu: 1`; sunucu/Chrome hiç başlatılmadı.
+
+### Ölçüm (geçici test dosyası, sonra silindi)
+
+42 şablonun bütün hücreleri, karolar (0,0), (-3,2), (7,-5); gerçek yol `drawnBounds` ile:
+
+- Çizilen yol `points` sınırının en çok **7,57·10⁻⁴** birim dışında (`overlap -3-2-h`) — denetçinin bulgusu doğrulandı.
+- 4 ondalıklı ekran yolu, yeni `bounds`'un en çok **4,97·10⁻⁵** birim dışında (`kite 0-0-a0`) — yalnız yuvarlama.
+
+### Yerel mutasyon denemeleri (kalıcı artefakt değil; dosya her seferinde yedekten birebir geri konuldu)
+
+1. İndirme ekran yolunu (`cell.d`) yazarsa: `lib/download.test.ts` -> `1 failed`
+   (`octagon 0-0-nw @1024: expected 0.2931145214005 to be less than or equal to 0.293107741214`).
+2. Sınır `points`'ten hesaplanırsa: `lib/download.test.ts` -> `2 failed` (kapsama testi `overlap ... @1024` ve Kesişen daire testi).
+3. Aynı mutasyon (2) tarayıcıda (o sırada denediğim ara sürümle, aşağıya bakın): `HATA Kesişen daire 0-0-h yalnız (dışarıda 288
+boyalı piksel, en yüksek alfa 230)`, `0-0-v` aynı. Bu tarayıcı mutasyonu son (`preciseD`) sürümle tekrarlanmadı.
+4. 3. turdan (yarım çizgi pay, HEAD'deki eski oran kodu) sayılar da aynı şekilde yerel mutasyondu: yarım çizgi payla 11 HATA,
+      HEAD koduyla 13×1 @1024 / 21×1 @2048 kenar alfası 0.
+
+## Ekran görüntüleri
+
+Arayüz görsel olarak değişmedi; ekran görüntüsü alınmadı. Doğrulama indirilen dosyaların piksel ölçümüyle yapıldı.
+
+## İddialar
+
+1. İndirilen SVG'deki gerçek yollar (yaylar dahil) + azami miter taşması viewBox içinde: 42 şablon × her hücre tek başına
+   5 karoda + karo + şeritler × 1024/2048/4096, `points`/`bounds`'a dayanmayan `drawnBounds` ile (birim test).
+2. Aynı şey Chrome'da raster olarak: Elmas merkezi, Kesişen daire `h`/`v`, 42 şablonda ekran ortasındaki tek hücre, 5 şablonda
+   3×3 (4× büyütmeyle, dışarıda 0 piksel).
+3. Uzun logo + renkli arka planda dört kenarın tamamı opak; köşe ve dikiş sonuçları 3. turdaki gibi.
+4. `verify:browser` dolu porta bağlanmaz (denendi); sunucu/Chrome erken kapanırsa başarısız sayar (kodda var, **denenmedi**).
+5. Bütün tarayıcı sonuçları **Chrome 157 mobil emülasyonunda** (375×812, DPR 3, dokunma). Fiziksel cihazda doğrulanmadı.
+
+## Şüpheler
+
+- **Fiziksel iPhone Safari / Android Chrome'da denenmedi.** README'deki üç vaka yayından önce elle yapılmalı.
+- **Ara sürümü bıraktım:** önce paya yuvarlama adımı (10⁻⁴ birim) eklemiştim. Tek hücre 4096 PNG'de bu ~0,4 px fazladan boşluk
+  demekti ve köşe ölçümü 2,2,2,2'ye çıktı (kontrol HATA verdi). Bunun yerine indirme yolunu 10 ondalığa çıkardım; köşe yine 1,1,1,1.
+- **İndirilen SVG metni uzadı:** irrasyonel koordinatlar (yaylar, altıgen, sekizgen) 4 yerine 10 ondalıkla yazılıyor. Ekran yolu
+  değişmedi. Dosya boyutu ölçülmedi; logo ölçeğinde birkaç KB düzeyinde bekliyorum.
+- `drawnBounds` yayı 2000 noktayla örnekler; gerçek tepeyi en çok yarıçap × (1 − cos(Δ/4000)) ≈ 10⁻⁸ birim eksik görebilir. Test
+  toleransı 10⁻⁹; aradaki fark çıktıda 0,0001 pikselin altında.
+- `drawnBounds` yalnız `shape()`'in ürettiği komutları (M, L, A, Z; rx = ry; döndürme 0) okur; başka bir yol biçimi eklenirse
+  test güncellenmeli.
+- Şeffaf zeminde dış kenar en fazla ~0,25 px yumuşak (miter payı, 3. turdaki bilinçli takas). Renkli arka planda fark yok.
+- Sunucu/Chrome'un test sırasında çökmesi ve CDP bağlantısının kopması yolları kodda var ama yapay olarak denenmedi.
+- Tarayıcıda her şablon için yalnız ekran ortasındaki **bir** hücre türü raster ölçülüyor; bütün hücre türleri ve karolar birim
+  testte (gerçek yol formülüyle) var.
+- `npm test` bu makinede Git Bash'ten çalıştırılınca bütün dosyalar "Vitest failed to find the runner" ile düşüyor
+  (muhtemelen `C:`/`c:` yol farkı); PowerShell'den 481/481.
+- `check:release` Chrome kurulu olmasını ister; CI yok, Vercel derlemesi çalıştırmaz.
+
+## Karar notları
+
+- Sınırı doğrudan parçalardan hesapladım (kardinal tepe noktaları): `points`'i değiştirmek isabet testini ve geometri
+  sözleşmesini (paylaşılan köşeler) etkilerdi; ayrı bir `bounds` alanı daha güvenli ve okunaklı.
+- Ekran yolu 4 ondalık kaldı (performans, Adım 5 kararı); yalnız indirme 10 ondalık. İki yol da aynı `toPath` fonksiyonundan çıkıyor.
+- Test bağımsızlığı için `drawnBounds`, üretim kodundaki `toBounds` mantığını (kardinal açılar) kullanmaz; yolu belirtimdeki formülle
+  çözüp yoğun örnekler.
+- Port çakışmasında dinamik port yerine açık hata seçtim: daha basit, kullanıcı neyin açık kaldığını görür.
+
+## Nasıl kontrol ederim
+
+1. PowerShell'de: `npm run check:release` (lint, format, test, build, tarayıcı betikleri). Çıkış kodu 0 olmalı.
+2. Eski hatayı görmek için (yerel mutasyon): `lib/download.ts`'de `paths.push(cell.preciseD)` -> `paths.push(cell.d)` yap ->
+   `npx vitest run lib/download.test.ts` Sekizgen'de düşer. `cell.bounds.minX`... satırlarını `points`'ten hesapla -> Kesişen
+   daire testleri düşer. Geri al.
+3. Port koruması: 3123'te bir şey açıkken `npm run verify:browser` hemen "Port 3123 dolu" demeli.
+4. Elle: `npm run dev`, Kesişen daire şablonunda yalnız bir mercek boya, SVG ve PNG 4096 indir: merceğin iki sivri ucu ve yan
+   kavisleri kesilmemiş olmalı.
+5. Telefonda: README "Kalite kontrolleri" bölümündeki üç vaka; cihaz/OS/tarayıcı sürümünü `docs/PROGRESS.md`'ye yaz.
+
+---
+
+# Tarihsel inceleme: Son sürüm doğrulaması — Adım 8
 
 16 Kasım 2026 tarihinde yerel kaynak üzerinde aşağıdaki kontroller tamamlandı:
 
@@ -8,7 +150,7 @@
 - `scripts/verify-release.mjs`, gerçek Chrome 157 üzerinde geçti: hücre boyama `localStorage`'a yazıldı, tam sayfa yenilemesinden
   sonra geri geldi; tuvalin erişilebilir adı, konum/renk canlı açıklaması ve çizim özeti doğrulandı; gerçek şeffaf SVG ile
   1024×1024 PNG dosyaları indirildi ve dosya içerikleri/imzaları okundu.
-- Production dağıtımı `dpl_6WrJ6hs1eLdq5KWrm1HcadqSSnTX` Vercel'de `READY` oldu ve `https://polygo-app.vercel.app`
+- Production dağıtımı Vercel'de `READY` oldu ve `https://polygo-app.vercel.app`
   alias'ına bağlandı. Deployment Protection arkasından yetkili istekle uygulama HTML'si ve metadata doğrulandı.
 - Kayıt yalnız şablon, boyama, seçili renk ve son renkleri saklar. Geri-al/yinele geçmişi ve yarım fırça hareketi saklanmaz.
   Bozuk/eski kayıtlar `sanitizePersistedState` ile doğrulanır ve güvenli varsayılanlara düşer.

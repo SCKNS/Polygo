@@ -6,12 +6,23 @@ export type Point = readonly [number, number];
 // - Hücre BASİT bir çokgendir: kenarları kendini kesmez. İçbükey olabilir (daire çevresindeki parçalar gibi).
 // - Hücrenin ağırlık merkezi kendi içindedir (dokunma ve klavye odağı bu noktayı kullanır).
 // points: isabet testi ve geometri testleri için çokgen; yaylar kısa doğru parçalarıyla yaklaşık verilir.
-// d: ekranda çizilen SVG yolu; yaylar gerçek yay komutudur (A), bu yüzden kısa ve pürüzsüzdür.
-// İkisi de shape.ts'teki shape() ile aynı parçalardan üretilir. Alanlar readonly: yalnız TypeScript düzeyinde koruma.
+// d: ekranda çizilen SVG yolu; yaylar gerçek yay komutudur (A), bu yüzden kısa ve pürüzsüzdür (4 ondalık).
+// preciseD: aynı yol 10 ondalıkla; indirilen dosyada kullanılır, böylece çizilen yol bounds ile örtüşür.
+// bounds: hücrenin GERÇEK sınır kutusu (yayların tepe noktaları dahil); points yaklaşık olduğundan indirme bunu kullanır.
+// Hepsi shape.ts'teki shape() ile aynı parçalardan üretilir. Alanlar readonly: yalnız TypeScript düzeyinde koruma.
 export type Cell = {
   readonly id: string;
   readonly points: readonly Point[];
   readonly d: string;
+  readonly preciseD: string;
+  readonly bounds: Bounds;
+};
+
+export type Bounds = {
+  readonly minX: number;
+  readonly minY: number;
+  readonly maxX: number;
+  readonly maxY: number;
 };
 
 // Uygulamanın tanıdığı şablon kimlikleri. Yazım hatası derlemede yakalanır.

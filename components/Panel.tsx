@@ -4,7 +4,12 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { panelTabs, type PanelId } from "./Tabs";
 import { PRESET_COLORS, usePaintStore } from "@/lib/paintStore";
 import { TemplatePicker } from "./TemplatePicker";
-import { createExportArtwork, downloadPng, downloadSvg } from "@/lib/download";
+import {
+  createExportArtwork,
+  downloadPng,
+  downloadSvg,
+  SVG_EXPORT_SIZE,
+} from "@/lib/download";
 import { getTemplate } from "@/lib/templates";
 
 type PanelProps = { activePanel: PanelId | null; onClose: () => void };
@@ -108,24 +113,25 @@ function Download() {
   const [message, setMessage] = useState("");
   const empty = Object.keys(fills).length === 0;
 
-  function artwork() {
+  // SVG her zaman aynı boyutta üretilir; "PNG kalitesi" ayarı yalnız PNG'yi etkiler.
+  function artwork(longestEdge: number) {
     return createExportArtwork(
       getTemplate(templateId),
       fills,
       backgroundMode === "transparent" ? null : backgroundColor,
-      pngSize,
+      longestEdge,
     );
   }
 
   function handleSvg() {
-    const output = artwork();
+    const output = artwork(SVG_EXPORT_SIZE);
     if (!output) return;
     downloadSvg(output);
     setMessage("SVG hazırlandı.");
   }
 
   async function handlePng() {
-    const output = artwork();
+    const output = artwork(pngSize);
     if (!output || busy) return;
     setBusy(true);
     setMessage("PNG hazırlanıyor…");

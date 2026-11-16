@@ -2,10 +2,14 @@
 
 ## Durum
 
-- Şu anki adım: Adım 8 — cila, erişilebilirlik ve yayın
-- Durum: TAMAMLANDI VE PRODUCTION'A YAYINLANDI
-- Son doğrulama: 476 birim testi, ESLint, Next.js production build ve gerçek Chrome sürüm testi temiz
-- Yayın: `https://polygo-app.vercel.app` — Vercel deployment `dpl_6WrJ6hs1eLdq5KWrm1HcadqSSnTX`, durum `READY`
+- Şu anki adım: Adım 8 düzeltmesi — indirmede köşe yuvarlanması (kullanıcı bildirdi, mobilde fark etti)
+- Durum: ✅ ONAYLANDI (kullanıcı, 17 Kasım 2026); commit `Adım 8: düzeltme`, push ve Vercel production. Fiziksel telefon denemesi kullanıcıda.
+- Önerilen commit mesajı: `Adım 8: düzeltme`
+- Son doğrulama (4. tur, üçüncü denetim sonrası): `npm run check:release` çıkış kodu 0 — 481 birim testi, ESLint, Prettier,
+  Next.js production build ve `verify:browser` (`verify-release` + `verify-download`: Chrome mobil emülasyonu, piksel ölçümü,
+  77 kontrol). Yalnız Chrome mobil emülasyonunda doğrulandı; **fiziksel iPhone Safari / Android Chrome'da denenmedi**, yayından
+  önce README'deki üç vakayla elle denenmeli ve sonuç (cihaz / OS / tarayıcı sürümü) buraya yazılmalı.
+- Yayın: `https://polygo-app.vercel.app` — durum `READY`
 
 ## Adım planı
 
@@ -98,6 +102,24 @@ Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki
   sayfayı büyütüyordu. `Canvas.tsx`'te `window` düzeyinde Ctrl/Cmd + teker engellenir, `.desk`'te `touch-action: pan-x pan-y`.
   Yakınlaşmış bir sekmede Ctrl+0 sayfayı düzeltir.
 - Dev sunucusu tarayıcı testleri `localhost` ile açılmalı: `127.0.0.1` üzerinden Next dev JS'i engeller, sayfa hydrate olmaz.
+- İndirme dikiş çizgisi (Adım 8 düzeltmesi): farklı renkli komşular arasındaki saç teli boşluğu kapatan kenar çizgisi çıktıda
+  ~1 piksel (`seamWidth = uzun kenar / longestEdge`), `miter` + `stroke-miterlimit` = `MITER_LIMIT` (1.5; ~83,6°'den dar köşeler
+  bevel). Önceden dünya biriminde sabit 0,01 ve `round` idi: küçük logolarda dış köşeleri yuvarlıyordu (1 hücre, 4096px: ~20px
+  yarıçap). viewBox payı her yönde `MITER_LIMIT × seamWidth / 2` (azami miter ucu; yarım çizgi Elmas merkezi gibi döndürülmüş
+  köşeleri kırpıyordu). Kısa kenar yukarı yuvarlanır; viewBox piksel oranına tam eşittir. SVG hep `SVG_EXPORT_SIZE` (1024)
+  boyutunda; "PNG kalitesi" yalnız PNG'yi etkiler.
+- İndirme sınırı `cell.points`ten DEĞİL `cell.bounds`tan gelir: points yayları 7,5°'lik doğrularla verir ve yay içindeki
+  0°/90°/180°/270° tepe noktalarını kaçırabilir (Kesişen daire merceklerinde 0,00076 birim). bounds parçalardan tam hesaplanır.
+  İndirilen yol `cell.preciseD`dir (10 ondalık); ekran yolu `d` 4 ondalıktır ve yuvarlanmış köşe gerçek sınırın ~5·10⁻⁵ birim
+  dışına düşebiliyordu (Sekizgen köşe üçgeni). `download.test.ts`teki `drawnBounds`, indirilen SVG'deki yolları SVG belirtimindeki
+  yay formülüyle çözüp örnekler; points/bounds'a dayanmaz.
+- Tarayıcı betikleri ortak altyapıyı `scripts/cdp.mjs`'ten alır. `npm run verify:browser` (önce `npm run build`) sunucuyu ve headless
+  Chrome'u kendisi açıp `verify-release` + `verify-download`'u çalıştırır; `npm run check:release` lint/format/test/build/verify:browser.
+  `verify-download` kırpılmayı `getBBox` ile değil raster ölçer (SVG 8px kenar boşluğuyla 4× çizilir; Chrome'un kenar yumuşatması
+  1× çözünürlükte ~0,2px'lik miter ucunu hiç boyamayabiliyor). `verify:browser` 3123 ya da 9233 doluysa hiç başlamaz; sunucu veya
+  Chrome erken kapanırsa sonuç başarısızdır. `cdp.mjs` her isteğe 60 sn zaman aşımı koyar, bağlantı koparsa bekleyenleri reddeder.
+- Bu makinede `npm test` Git Bash'ten çalıştırılınca bütün dosyalar "Vitest failed to find the runner" ile düşüyor (muhtemelen `C:`/`c:`
+  yol farkı); PowerShell'den çalıştırın.
 - Görsel kontrol: yerel Chrome headless ekran görüntüsü (masaüstü 1280px, mobil 375px iframe). Hover/tık bu yolla doğrulanmaz.
 
 ## DENETÇİYE VER şablonu

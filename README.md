@@ -34,14 +34,22 @@ npm run lint
 npm run build
 ```
 
-Gerçek tarayıcı sürüm testi kayıt, erişilebilir açıklamalar ve indirilen SVG/PNG dosyalarını birlikte doğrular:
+Gerçek tarayıcı testleri kayıt, erişilebilir açıklamalar ve indirilen SVG/PNG dosyalarını (piksel düzeyinde köşe,
+dikiş, kenar ve kırpılma ölçümü; Chrome mobil emülasyonu) doğrular. Komut production sunucusunu ve headless Chrome'u
+kendisi açıp kapatır; Chrome başka yerdeyse `CHROME_PATH` verin. Yayından önce hepsi birlikte:
 
 ```sh
-npm run build
-npm run start -- -p 3123
-chrome --headless=new --remote-debugging-port=9233 --user-data-dir=<geçici-klasör> about:blank
-npm run verify:release -- <geçici-indirme-klasörü>
+npm run check:release   # lint + format + test + build + verify:browser
 ```
+
+Bu testler fiziksel telefonun yerini tutmaz. Yayından önce iPhone Safari ve Android Chrome'da elle denenir
+(`npm run dev`, aynı Wi-Fi'den `http://<bilgisayar-ip>:3000`); indirilen resim galeride tam ekran büyütülür:
+
+1. Kare'de tek hücre, PNG 4096: dört köşe sivri.
+2. Elmas'ta yalnız ortadaki baklava, SVG ve PNG 4096: dört uç kesilmemiş.
+3. Kare'de 13 hücrelik yatay şerit, arka plan renkli, PNG 1024: sol/sağ kenarda şeffaf şerit yok.
+
+Sonuç cihaz, işletim sistemi ve tarayıcı sürümüyle `docs/PROGRESS.md`'ye yazılır.
 
 Boyama/kamera ve bütün şablonların ayrıntılı Chrome testleri sırasıyla `scripts/verify-paint.mjs` ve `scripts/verify-templates.mjs` içindedir.
 

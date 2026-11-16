@@ -1,4 +1,4 @@
-import type { Cell, Point } from "./types";
+import type { Bounds, Cell, Point } from "./types";
 
 // Hücre sınırının bir parçası: ya bir köşe noktası (oraya düz çizgi) ya da bir yay.
 // Yay, merkezi ve yarıçapı verilen dairenin from açısından to açısına giden parçasıdır.
@@ -45,27 +45,33 @@ function samePoint(a: Point, b: Point): boolean {
   return Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
 }
 
-// Ekran için 4 ondalık yeter (%400'de bir birim 160px: 0.0001 birim = 0.016px); SVG metni de kısalır.
-function round(value: number): number {
-  return Math.round(value * 1e4) / 1e4;
+// Ekran yolu için 4 ondalık yeter (%400'de bir birim 160px: 0.0001 birim = 0.016px); SVG metni de kısalır.
+// İndirme yolu 10 ondalıktır: yuvarlanmış köşe gerçek sınırın (bounds) dışına düşüp kırpılmasın.
+const SCREEN_DECIMALS = 4;
+const EXPORT_DECIMALS = 10;
+
+function round(value: number, decimals: number): number {
+  const scale = 10 ** decimals;
+  return Math.round(value * scale) / scale;
 }
 
-function xy([x, y]: Point): string {
-  return `${round(x)} ${round(y)}`;
+function xy([x, y]: Point, decimals: number): string {
+  return `${round(x, decimals)} ${round(y, decimals)}`;
 }
 
 // SVG yay komutu. Açı artıyorsa ekranda saat yönündedir (sweep 1). 180°'den büyük yaylar iki parçaya bölünür
 // (tam daire tek komutla çizilemez).
-function arcCommands(arc: Arc): string {
+function arcCommands(arc: Arc, decimals: number): string {
   const sweep = arc.to > arc.from ? 1 : 0;
   if (Math.abs(arc.to - arc.from) > 180) {
     const middle = (arc.from + arc.to) / 2;
     return (
-      arcCommands({ ...arc, to: middle }) +
-      arcCommands({ ...arc, from: middle })
+      arcCommands({ ...arc, to: middle }, decimals) +
+      arcCommands({ ...arc, from: middle }, decimals)
     );
   }
-  return `A${round(arc.r)} ${round(arc.r)} 0 0 ${sweep} ${xy(pointOnArc(arc, arc.to))}`;
+  const r = round(arc.r, decimals);
+  return `A${r} ${r} 0 0 ${sweep} ${xy(pointOnArc(arc, arc.to), decimals)}`;
 }
 
 // Parçalardan isabet testi çokgeni: yaylar kısa doğru parçalarına bölünür, art arda tekrar eden köşe atılır.
@@ -84,30 +90,64 @@ function toPoints(segments: readonly Segment[]): Point[] {
 }
 
 // Parçalardan çizim yolu: düz kenarlar L, yaylar gerçek A komutu.
-function toPath(segments: readonly Segment[]): string {
+function toPath(segments: readonly Segment[], decimals: number): string {
   let d = "";
   let last: Point | null = null;
   for (const segment of segments) {
     const start = isArc(segment) ? pointOnArc(segment, segment.from) : segment;
-    if (last === null) d = `M${xy(start)}`;
-    else if (!samePoint(last, start)) d += `L${xy(start)}`;
-    if (isArc(segment)) d += arcCommands(segment);
+    if (last === null) d = `M${xy(start, decimals)}`;
+    else if (!samePoint(last, start)) d += `L${xy(start, decimals)}`;
+    if (isArc(segment)) d += arcCommands(segment, decimals);
     last = isArc(segment) ? pointOnArc(segment, segment.to) : segment;
   }
   return d + "Z";
 }
 
-// Parçalardan hücre üretir: d (çizim için gerçek yaylı SVG yolu) ve points (isabet testi ve geometri testleri için çokgen)
-// aynı parçalardan çıktığı için birbirini tutar. points ilk kullanıldığında hesaplanır: ekranı dolduran binlerce hücrenin
-// yalnız çizgisi gerekir, köşe listesi yalnız dokunulan karonun hücrelerinde gerekir.
+// Parçaların gerçek sınır kutusu. Köşeler ve yay uçları yetmez: yay 0°/90°/180°/270° yönünden geçiyorsa en dış noktası
+// oradadır (örn. -45°..45° yayının en sağ noktası 0°'dedir). points bu noktaları her zaman içermez, bu hesap içerir.
+function toBounds(segments: readonly Segment[]): Bounds {
+  const corners: Point[] = [];
+  for (const segment of segments) {
+    if (!isArc(segment)) {
+      corners.push(segment);
+      continue;
+    }
+    const low = Math.min(segment.from, segment.to);
+    const high = Math.max(segment.from, segment.to);
+    corners.push(pointOnArc(segment, low), pointOnArc(segment, high));
+    for (let deg = Math.ceil(low / 90) * 90; deg <= high; deg += 90)
+      corners.push(pointOnArc(segment, deg));
+  }
+  return {
+    minX: Math.min(...corners.map(([x]) => x)),
+    minY: Math.min(...corners.map(([, y]) => y)),
+    maxX: Math.max(...corners.map(([x]) => x)),
+    maxY: Math.max(...corners.map(([, y]) => y)),
+  };
+}
+
+// Parçalardan hücre üretir: d (ekranda çizilen gerçek yaylı SVG yolu), preciseD (aynı yol, indirme için tam hassasiyet),
+// points (isabet testi ve geometri testleri için çokgen) ve bounds (indirmede kırpma kutusu) aynı parçalardan çıktığı
+// için birbirini tutar. preciseD, points ve bounds ilk kullanıldığında hesaplanır: ekranı dolduran binlerce hücrenin
+// yalnız ekran yolu gerekir.
 export function shape(id: string, segments: readonly Segment[]): Cell {
+  let preciseD: string | null = null;
   let points: Point[] | null = null;
+  let bounds: Bounds | null = null;
   return {
     id,
-    d: toPath(segments),
+    d: toPath(segments, SCREEN_DECIMALS),
+    get preciseD() {
+      preciseD ??= toPath(segments, EXPORT_DECIMALS);
+      return preciseD;
+    },
     get points() {
       points ??= toPoints(segments);
       return points;
+    },
+    get bounds() {
+      bounds ??= toBounds(segments);
+      return bounds;
     },
   };
 }

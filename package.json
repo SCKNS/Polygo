@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "test": "vitest run",
     "verify:release": "node scripts/verify-release.mjs",
+    "verify:download": "node scripts/verify-download.mjs",
+    "verify:browser": "node scripts/verify-browser.mjs",
+    "check:release": "npm run lint && npm run format:check && npm test && npm run build && npm run verify:browser",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

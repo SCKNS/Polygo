@@ -1,42 +1,38 @@
-import type { CSSProperties } from "react";
+import { toPointsAttribute, type Template } from "@/lib/templates";
 
-// Bu örnek yalnızca ilk ekranın kompozisyonudur; hücreler değiştirilemez.
-const filledCells = [
-  [2, 1], [3, 1], [4, 1], [5, 1],
-  [2, 2], [3, 2], [5, 2], [6, 2],
-  [2, 3], [3, 3], [5, 3], [6, 3],
-  [2, 4], [3, 4], [4, 4], [5, 4],
-  [2, 5], [3, 5], [2, 6], [3, 6], [2, 7], [3, 7],
-];
+type CanvasProps = {
+  template: Template;
+};
 
-export function Canvas() {
+// Dış çerçeve ve kenar çizgileri tuvalin sınırında ortalanarak çizilir; yarısı dışarı taşmasın diye
+// viewBox her yönden bu kadar (birim) genişletilir. overflow: visible'a güvenilmez.
+// Sınır: çizgi kalınlığı ekran pikseliyle (non-scaling-stroke), pay ise birimle ölçülür. 1.1px çerçevenin yarısı
+// (0.55px) için birim başına ≥11px gerekir: 8 birimlik şablonda tuval ≥ ~90px, 6 birimlikte ≥ ~68px olmalı.
+// Mevcut düzende tuval en az ~280px; küçük önizlemelerde (Adım 4) bu ayrıca ele alınmalı.
+const FRAME_PADDING = 0.05;
+
+export function Canvas({ template }: CanvasProps) {
+  const { width, height, cells } = template;
+  const viewBox = `${-FRAME_PADDING} ${-FRAME_PADDING} ${width + 2 * FRAME_PADDING} ${height + 2 * FRAME_PADDING}`;
+
   return (
     <div className="canvas-area">
-      <svg className="drawing-canvas" viewBox="0 0 360 360" role="img" aria-label="Dokuz çarpı dokuz kareli tuvalde geometrik P harfi. Statik arayüz önizlemesi.">
-        <defs>
-          <pattern id="pencil-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
-            <path d="M0 0V7" stroke="var(--accent)" strokeWidth="1.5" />
-          </pattern>
-        </defs>
-        {Array.from({ length: 8 }, (_, index) => (
-          <path key={index} className="canvas-grid-line" pathLength="1" d={`M${(index + 1) * 40} 0V360M0 ${(index + 1) * 40}H360`} fill="none" />
-        ))}
-        {filledCells.map(([column, row], index) => (
-          <rect key={`${column}-${row}`} className="canvas-cell filled-cell" x={column * 40} y={row * 40} width="40" height="40"
-            style={{ "--cell-index": index } as CSSProperties} />
-        ))}
-        <rect className="canvas-frame" x=".75" y=".75" width="358.5" height="358.5" rx="3" fill="none" pathLength="1" />
-        {Array.from({ length: 81 }, (_, index) => (
-          <rect className="hover-cell" key={index} x={(index % 9) * 40 + 1} y={Math.floor(index / 9) * 40 + 1}
-            width="38" height="38" fill="url(#pencil-hatch)" />
-        ))}
+      <svg className="drawing-canvas" viewBox={viewBox}
+        role="img" aria-label={`${template.name} şablonu: ${cells.length} boş hücre.`}>
+        {/* Boş hücreler şeffaf. Boyama (tıklama/dokunma) Adım 3'te eklenecek. */}
+        <g className="canvas-cells">
+          {cells.map((cell) => (
+            <polygon key={cell.id} className="canvas-cell" points={toPointsAttribute(cell.points)} />
+          ))}
+        </g>
+        {/* Çizgiler ayrı katmanda: ortak kenarlar iki kez çizilse de grup saydamlığı tek seferde uygulanır. */}
+        <g className="canvas-lines" aria-hidden="true">
+          {cells.map((cell) => (
+            <polygon key={cell.id} points={toPointsAttribute(cell.points)} vectorEffect="non-scaling-stroke" />
+          ))}
+        </g>
+        <rect className="canvas-frame" width={width} height={height} vectorEffect="non-scaling-stroke" />
       </svg>
-      <div className="canvas-note" aria-hidden="true">
-        <svg className="canvas-note-arrow" viewBox="0 0 54 43" fill="none">
-          <path d="M48 36C24 41 15 27 17 8m-7 8 7-9 7 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span>bir hücreye dokun</span>
-      </div>
       <p className="canvas-caption">küçük kareler, sonsuz ihtimal.</p>
     </div>
   );

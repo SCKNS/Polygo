@@ -42,15 +42,11 @@ button:disabled { cursor: default; }
 .workspace { position: relative; display: grid; place-items: center; flex: 1; min-height: 490px; padding: 55px 40px 30px; }
 .canvas-composition { width: min(100%, 378px); }
 .canvas-area { position: relative; width: 100%; }
-.drawing-canvas { display: block; width: 100%; height: auto; overflow: visible; cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Ccircle cx='6' cy='6' r='2' fill='%231f2230'/%3E%3C/svg%3E") 6 6, crosshair; }
-.canvas-frame { fill: none; stroke: var(--ink); stroke-width: 1.1; opacity: .48; stroke-dasharray: 1; stroke-dashoffset: 1; animation: pencil-draw 700ms var(--ease-paper) 430ms forwards; }
-.canvas-grid-line { fill: none; stroke: var(--ink-line); stroke-width: .65; stroke-dasharray: 1; stroke-dashoffset: 1; animation: pencil-draw 650ms var(--ease-paper) 420ms forwards; }
-.filled-cell { fill: var(--ink); transform-box: fill-box; transform-origin: center; animation: cell-appear 380ms var(--ease-paper) calc(650ms + var(--cell-index, 0) * 20ms) both; }
-.hover-cell { opacity: 0; transition: opacity 120ms ease; }
-.hover-cell:hover { opacity: .35; }
-.canvas-note { display: flex; justify-content: flex-end; align-items: flex-start; gap: 6px; margin: 20px -5px 0 0; font-family: var(--font-hand), cursive; font-size: 24px; line-height: 1.2; color: var(--ink-soft); transform: rotate(-3deg); animation: ink-appear 450ms ease 1100ms both; }
-.canvas-note-arrow { width: 44px; height: 36px; margin-top: -9px; }
-.canvas-caption { margin-top: 13px; font-size: 10px; line-height: 1.5; letter-spacing: .16em; color: var(--ink); text-align: left; }
+.drawing-canvas { display: block; width: 100%; height: auto; }
+.canvas-frame { fill: none; stroke: var(--ink); stroke-width: 1.1; opacity: .7; animation: fade-in 500ms ease 420ms both; }
+.canvas-cell { fill: transparent; }
+.canvas-lines { fill: none; stroke: var(--ink); stroke-width: 1; stroke-linejoin: round; opacity: .55; pointer-events: none; animation: fade-in 500ms ease 420ms both; }
+.canvas-caption { margin-top: 20px; font-size: 10px; line-height: 1.5; letter-spacing: .16em; color: var(--ink); text-align: left; }
 .page-footer { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 60px 30px 66px; font-size: 10px; line-height: 1.6; letter-spacing: .12em; color: var(--ink); }
 .page-footer p { margin: 0; }
 .page-footer .footer-note { font-family: var(--font-hand), cursive; font-size: 19px; letter-spacing: 0; }
@@ -112,8 +108,9 @@ button:disabled { cursor: default; }
 @keyframes notebook-settle { from { opacity: 0; transform: translateY(-6px) scale(.985); } to { opacity: 1; transform: none; } }
 @keyframes ring-drop { from { opacity: 0; transform: translateY(-7px); } 75% { opacity: 1; transform: translateY(1px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pencil-draw { to { stroke-dashoffset: 0; } }
-@keyframes cell-appear { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
 @keyframes ink-appear { from { opacity: 0; } to { opacity: 1; } }
+/* to yok: animasyon öğenin kendi opaklığına (ör. çizgilerde .55) kadar çıkar. */
+@keyframes fade-in { from { opacity: 0; } }
 @keyframes tab-reveal { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes wordmark-write { to { clip-path: inset(0 0 0 0); } }
 
@@ -144,7 +141,6 @@ button:disabled { cursor: default; }
   .toolbar { gap: 6px; }
   .workspace { min-height: 360px; padding: 31px 16px 34px; }
   .canvas-composition { width: min(100%, 360px); }
-  .canvas-note { font-size: 24px; margin-top: 18px; margin-right: 2px; }
   .canvas-caption { font-size: 9px; }
   .page-footer { padding: 0 19px 39px; gap: 10px; font-size: 8px; letter-spacing: .08em; }
   .page-footer .footer-note { font-size: 16px; }
@@ -186,8 +182,8 @@ button:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .wordmark-text { clip-path: none; }
-  .page-grid path, .page-grid line, .canvas-frame, .canvas-grid-line { stroke-dashoffset: 0; }
-  .spiral-highlight, .wordmark-doodle, .canvas-note, .download-stamp:nth-child(2), .index-tab:hover, .index-tab[data-active="true"], .index-tab:hover span { transform: none; }
+  .page-grid path, .page-grid line { stroke-dashoffset: 0; }
+  .spiral-highlight, .wordmark-doodle, .download-stamp:nth-child(2), .index-tab:hover, .index-tab[data-active="true"], .index-tab:hover span { transform: none; }
   .panel-layer[data-open="true"] .paper-panel { transform: translateY(-50%); }
 }
 @media (prefers-reduced-motion: reduce) and (max-width: 640px) { .panel-layer[data-open="true"] .paper-panel { transform: none; } }

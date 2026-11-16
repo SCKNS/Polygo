@@ -1,10 +1,10 @@
 # Polygo: İlerleme
 
 ## Durum
-- Şu anki adım: Adım 1 — kurulum ve defter arayüzü
-- Durum: İNCELEME BEKLİYOR
-- Son onaylanan commit: yok
-- Önerilen commit mesajı: Adım 1: defter arayüzü kuruldu
+- Şu anki adım: Adım 2 — şablon veri yapısı + tuvalde ızgara
+- Durum: ONAYLANDI (4. tur: O1 öz-kesişme kontrolü eklendi), commit edildi
+- Son onaylanan commit: 9ce2d9b Adım 1: Defter arayüzü iskeleti
+- Önerilen commit mesajı: Adım 2: şablon verisi ve SVG ızgara
 
 ## Adım planı
 Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki adıma geçilmez.
@@ -22,10 +22,23 @@ Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki
 ## Bilinen kararlar / açık sorular
 - Tasarım kararları proje kurallar dosyasında.
 - Vurgu: #D9482B. El yazısı: Caveat; arayüz: DM Sans (latin-ext).
-- Build ve lint başarılı; üretim sunucusu HTTP 200 döndürdü.
-- Tarayıcı bağlantısı bulunmadığından masaüstü/mobil görsel kontrol ve ekran görüntüleri doğrulanmadı.
-- Boyama, şablon değiştirme, indirme ve kalıcı kayıt eklenmedi.
-- Commit/push yapılmadı; onay sonrası kimlik kontrolü yapılmalı.
+- Şablonlar `lib/templates/` altında veri: hücre = köşe noktaları (çokgen), birim = bir kare kenarı.
+- Hücre id'leri kalıcı (`x-y`, `x-y-a`, `x-y-top` ...); Adım 3'te boyama bu id'lerle tutulacak.
+- İlk şablonlar: Kare (8×8), Çapraz (8×8, 2 üçgen/kare), Dörtlü (6×6, 4 üçgen/kare).
+- Adım 2: build, lint ve test (20/20) temiz; üretim sunucusu 200, 64 hücre render edildi.
+- Tuval şimdilik yalnızca varsayılan şablonu (Kare) gösterir; şablon seçimi Adım 4'te.
+- Vitest Adım 2 düzeltmesinde kuruldu (denetçi kalıcı geometri testi istedi): `lib/templates/templates.test.ts`.
+- Hücre sözleşmesi: her hücre dışbükey çokgendir; test basitliği (öz-kesişme yok) + dışbükeyliği, ikili örtüşmeyi (ayırıcı eksen) ve alan toplamını
+  toleranslı (EPSILON = 1e-9), örneklemesiz denetler; yardımcıların negatif testleri var (yıldız, kelebek, içbükey).
+- Yeni şablon eklemek 3 yer: `TemplateId`, `TEMPLATES` girdisi, testteki `EXPECTED_CELL_COUNTS` (unutulursa tsc hata verir).
+- Windows notu: `npm test` küçük harfli sürücü yolundan (`c:\...`) çalışınca Vitest "reading 'config'" hatası verir;
+  büyük harfli `C:\...` yolundan çalıştırın. Linux/Vercel etkilenmez.
+- **AÇIK — Adım 3 engeli (O4, dokunma hedefi):** 375px'te Dörtlü üçgenleri ~22-27px, Çapraz kareleri ~33-40px.
+  Boyama kodu yazılmadan önce yöntem kullanıcıyla seçilir (yakınlaştırma / mobilde daha seyrek şablon / koordinata göre hücre seçimi).
+  Kabul ölçütü: 375px genişlikte her şablonda, hedeflenen hücre parmakla en az ~44×44 CSS px'lik etkin alanla seçilebilmeli
+  (gerekirse yakınlaştırarak); bir dokunuş komşu hücreyi boyamamalı; bu, gerçek telefonda ya da dokunma emülasyonunda denenip REVIEW'e yazılır.
+- `getTemplate` yalnız `TemplateId` alır; kayıttan gelen bilinmeyen kimliği varsayılana düşüren kontrol Adım 6'da.
+- Görsel kontrol: yerel Chrome headless ekran görüntüsü (masaüstü 1280px, mobil 375px iframe). Hover/tık bu yolla doğrulanmaz.
 
 ## DENETÇİYE VER şablonu
 Adım sonunda kullanıcıya bu blok, boşlukları doldurularak verilir:

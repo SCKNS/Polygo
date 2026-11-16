@@ -7,6 +7,7 @@ import { ToolBar } from "./ToolBar";
 import { Canvas } from "./Canvas";
 import { Tabs, type PanelId } from "./Tabs";
 import { Panel } from "./Panel";
+import { DEFAULT_TEMPLATE } from "@/lib/templates";
 
 export default function Notebook() {
   const [activePanel, setActivePanel] = useState<PanelId | null>(null);
@@ -29,7 +30,7 @@ export default function Notebook() {
         </svg>
         <Spiral />
         <header className="notebook-header"><WordMark /><ToolBar /></header>
-        <div className="workspace"><div className="canvas-composition"><Canvas /></div></div>
+        <div className="workspace"><div className="canvas-composition"><Canvas template={DEFAULT_TEMPLATE} /></div></div>
         <footer className="page-footer"><span>küçük şekiller, kendine ait bir iz.</span><span>01 / çizim defteri</span></footer>
         <Tabs activePanel={activePanel} onChange={setActivePanel} />
         <Panel activePanel={activePanel} onClose={closePanel} />

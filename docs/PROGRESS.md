@@ -1,10 +1,10 @@
 # Polygo: İlerleme
 
 ## Durum
-- Şu anki adım: Adım 2 — şablon veri yapısı + tuvalde ızgara
-- Durum: ONAYLANDI (4. tur: O1 öz-kesişme kontrolü eklendi), commit edildi
-- Son onaylanan commit: 9ce2d9b Adım 1: Defter arayüzü iskeleti
-- Önerilen commit mesajı: Adım 2: şablon verisi ve SVG ızgara
+- Şu anki adım: Adım 3 — boyama (tıkla/sürükle, renkler, geri al, temizle, yakınlaştırma)
+- Durum: ONAYLANDI (2. tur: denetçi düzeltmeleri — hızlı sürükleme, pointercancel, mobil panel kaydırma), commit edildi
+- Son onaylanan commit: 22df4d9 Adım 2: şablon verisi ve SVG ızgara
+- Önerilen commit mesajı: Adım 3: hücre boyama ve yakınlaştırma
 
 ## Adım planı
 Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki adıma geçilmez.
@@ -14,10 +14,14 @@ Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki
    ortada yer tutucu tuval. Masaüstü + mobil düzen. İşlev yok, sadece sekme açıp kapama.
 2. **Şablon veri yapısı + tuvalde ızgara:** Hücre/şablon tipleri, ilk 2-3 şablon, SVG tuvalde çizim.
 3. **Boyama:** Hücreye tıkla/sürükle boya, serbest renk seçici, hazır ve son kullanılan renkler, geri al, temizle (Zustand).
-4. **Şablon paleti:** Çok sayıda şablon, panelde küçük önizlemeler, seçince tuval değişir.
-5. **İndirme:** SVG ve şeffaf PNG (arka plan rengi seçilebilir ya da şeffaf), hücre arası çizgi sorunu çözülür.
-6. **Kayıt:** Çalışma localStorage'da saklanır, sayfa yenilenince geri gelir.
-7. **Cila ve yayın:** Testler (Vitest), erişilebilirlik, README (ekran görüntüleri + teknik kararlar), Vercel yayını.
+4. **Tam sayfa sonsuz ızgara:** Defter sayfasının içi yalnız ızgara (kullanıcı kararı, Adım 3 incelemesi sırasında).
+   Izgara her yöne sınırsız; kaydırma (masaüstü teker/sürükleme, mobil iki parmak) ve yakınlaştırma. Görünen alanın hücreleri
+   o an üretilir; hücre id'leri dünya koordinatı (`x-y`, `x-y-a` ...) olarak kalır, negatif koordinat da olabilir.
+   İndirmede (Adım 6) yalnız boyalı hücrelerin çevresi kırpılır. Şablonlar sabit boyutlu tuval değil, tekrar eden desen olur.
+5. **Şablon paleti:** Çok sayıda şablon, panelde küçük önizlemeler, seçince tuval değişir.
+6. **İndirme:** SVG ve şeffaf PNG (arka plan rengi seçilebilir ya da şeffaf), hücre arası çizgi sorunu çözülür.
+7. **Kayıt:** Çalışma localStorage'da saklanır, sayfa yenilenince geri gelir.
+8. **Cila ve yayın:** Testler (Vitest), erişilebilirlik, README (ekran görüntüleri + teknik kararlar), Vercel yayını.
 
 ## Bilinen kararlar / açık sorular
 - Tasarım kararları proje kurallar dosyasında.
@@ -33,10 +37,18 @@ Her adım tek oturumda yapılır, bitince incelemeye gider, onaylanmadan sonraki
 - Yeni şablon eklemek 3 yer: `TemplateId`, `TEMPLATES` girdisi, testteki `EXPECTED_CELL_COUNTS` (unutulursa tsc hata verir).
 - Windows notu: `npm test` küçük harfli sürücü yolundan (`c:\...`) çalışınca Vitest "reading 'config'" hatası verir;
   büyük harfli `C:\...` yolundan çalıştırın. Linux/Vercel etkilenmez.
-- **AÇIK — Adım 3 engeli (O4, dokunma hedefi):** 375px'te Dörtlü üçgenleri ~22-27px, Çapraz kareleri ~33-40px.
-  Boyama kodu yazılmadan önce yöntem kullanıcıyla seçilir (yakınlaştırma / mobilde daha seyrek şablon / koordinata göre hücre seçimi).
-  Kabul ölçütü: 375px genişlikte her şablonda, hedeflenen hücre parmakla en az ~44×44 CSS px'lik etkin alanla seçilebilmeli
-  (gerekirse yakınlaştırarak); bir dokunuş komşu hücreyi boyamamalı; bu, gerçek telefonda ya da dokunma emülasyonunda denenip REVIEW'e yazılır.
+- O4 (dokunma hedefi) için kullanıcı **yakınlaştırmayı** seçti (Adım 3 başı). +/− düğmeleri (×1.5, %100–%400), iki parmakla
+  yakınlaştırma/kaydırma, klavyede +/−. Dokunma emülasyonunda ölçüldü: 375px'te Dörtlü ve Çapraz 2 dokunuşta (%225), Kare 1 dokunuşta (%150)
+  her hücreye ≥44px çaplı daire sığıyor; merkez ±15px dokunuşlarda komşu hücre boyanmadı. Gerçek telefonda denenmedi.
+- Boyama durumu: `lib/paintStore.ts` (Zustand). Hücre id -> hex renk; bir sürükleme = bir geri alma adımı; geçmiş en çok 100.
+  Aynı renkle boyalı hücreye dokunmak siler (ayrı silgi yok). Son kullanılan renkler yalnız boyamada güncellenir (en çok 6).
+- Boyama tek bir şablon için tutuluyor; şablon değişince ne olacağı (ayrı kayıt mı, temizleme mi) şablon paleti adımında karar.
+- Adım 4 kararları (kullanıcı): sonsuz ızgara; ayrı adım; "defterin içi sınırsız ızgara olsun sadece" — sayfa içindeki logo, araç çubuğu,
+  tuval altı notu ve sayfa altı yazıları sayfanın içinden kalkar. AÇIK SORU (Adım 4 başında sorulacak): logo ve araçlar nereye
+  (defterin dışında masa üstünde mi, ayraçlara mı taşınır?).
+- Erişilebilirlik borcu (denetçi, Adım 3): tuvalin ekran okuyucu modeli yetersiz (`role="application"`, hücre id'si okunuyor,
+  boyalı hücre yapısı gezilemiyor). Adım 8'de (ya da ızgara modeli oturduktan sonra) ele alınacak.
+- Tarayıcı doğrulama betiği: `scripts/verify-paint.mjs` (kullanımı dosyanın başında).
 - `getTemplate` yalnız `TemplateId` alır; kayıttan gelen bilinmeyen kimliği varsayılana düşüren kontrol Adım 6'da.
 - Görsel kontrol: yerel Chrome headless ekran görüntüsü (masaüstü 1280px, mobil 375px iframe). Hover/tık bu yolla doğrulanmaz.
 

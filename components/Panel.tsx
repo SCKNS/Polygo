@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type CSSProperties } from "react";
 import { panelTabs, type PanelId } from "./Tabs";
+import { PRESET_COLORS, usePaintStore } from "@/lib/paintStore";
 
 type PanelProps = { activePanel: PanelId | null; onClose: () => void };
 
@@ -43,15 +44,39 @@ function Templates() {
   </>;
 }
 
+const COLOR_NAMES: Record<string, string> = {
+  "#1f2230": "mürekkep", "#d9482b": "kiremit", "#f2b134": "hardal", "#2e7d6b": "yosun",
+  "#3a5ba0": "çivit", "#8c5e9e": "erik", "#9a9384": "taş", "#ffffff": "beyaz",
+};
+
+function PigmentButton({ color, selected, onSelect }: { color: string; selected: boolean; onSelect: (color: string) => void }) {
+  return (
+    <button type="button" className="pigment" style={{ "--pigment": color } as CSSProperties}
+      aria-label={COLOR_NAMES[color] ?? color} aria-pressed={selected} onClick={() => onSelect(color)} />
+  );
+}
+
 function Colors() {
-  const pigments = ["var(--ink)", "var(--accent)", "rgba(31,34,48,.55)", "rgba(31,34,48,.18)", "#E9E0CC", "#F7F2E8"];
+  const color = usePaintStore((state) => state.color);
+  const recentColors = usePaintStore((state) => state.recentColors);
+  const setColor = usePaintStore((state) => state.setColor);
   return <>
     <p className="panel-note">istediğin renk</p>
-    <div className="pigment-row" aria-label="Örnek renk paleti">
-      {pigments.map((pigment, i) => <span key={pigment} className="pigment" data-selected={i === 0} style={{ "--pigment": pigment } as CSSProperties} />)}
+    <div className="pigment-row" role="group" aria-label="Hazır renkler">
+      {PRESET_COLORS.map((preset) => <PigmentButton key={preset} color={preset} selected={preset === color} onSelect={setColor} />)}
     </div>
-    <div className="custom-pigment" aria-label="Özel renk seçici yer tutucusu"><span aria-hidden="true">+</span></div>
-    <p className="panel-footnote">biraz mürekkep, biraz sen.</p>
+    <p className="pigment-label">son kullanılanlar</p>
+    {recentColors.length > 0
+      ? <div className="pigment-row" role="group" aria-label="Son kullanılan renkler">
+          {recentColors.map((recent) => <PigmentButton key={recent} color={recent} selected={recent === color} onSelect={setColor} />)}
+        </div>
+      : <p className="pigment-empty">boyadıkça burada birikir.</p>}
+    <label className="custom-pigment-row">
+      {/* Tarayıcının kendi renk seçicisi: klavye ve ekran okuyucu desteği hazır gelir. */}
+      <input type="color" className="custom-pigment" value={color} onChange={(event) => setColor(event.target.value)} />
+      <span>özel renk <code>{color}</code></span>
+    </label>
+    <p className="panel-footnote">aynı renkle boyalı hücreye dokunmak onu siler.</p>
   </>;
 }
 
@@ -77,7 +102,10 @@ export function Panel({ activePanel, onClose }: PanelProps) {
       returnFocus.current = null;
       return;
     }
-    returnFocus.current = document.getElementById(`tab-${activePanel}`);
+    // Kapanınca odak paneli açan öğeye döner (ayraç ya da araç çubuğundaki renk düğmesi).
+    const opener = document.activeElement;
+    returnFocus.current = opener instanceof HTMLElement && opener !== document.body && !panelRef.current?.contains(opener)
+      ? opener : document.getElementById(`tab-${activePanel}`);
     // Oklarla ayraç değiştiren kişinin odağını kaçırmayız.
     if (!document.activeElement?.classList.contains("index-tab")) {
       panelRef.current?.querySelector<HTMLButtonElement>(".panel-close")?.focus();
@@ -88,10 +116,12 @@ export function Panel({ activePanel, onClose }: PanelProps) {
       if (event.key !== "Tab") return;
       // Ayraçlar da odak döngüsünde kalır; panel açıkken başka yaprağa geçilebilir.
       const controls = [
-        ...document.querySelectorAll<HTMLButtonElement>('.index-tab[tabindex="0"]'),
-        ...panelRef.current!.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'),
+        ...document.querySelectorAll<HTMLElement>('.index-tab[tabindex="0"]'),
+        // Gizli yapraklardaki denetimler döngüye girmez.
+        ...panelRef.current!.querySelectorAll<HTMLElement>(
+          ".panel-header button, .panel-content:not([hidden]) button:not(:disabled), .panel-content:not([hidden]) input:not(:disabled)"),
       ];
-      const current = controls.indexOf(document.activeElement as HTMLButtonElement);
+      const current = controls.indexOf(document.activeElement as HTMLElement);
       const next = (current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
       event.preventDefault();
       controls[next]?.focus();
@@ -106,7 +136,10 @@ export function Panel({ activePanel, onClose }: PanelProps) {
     <div className="panel-layer" data-open={activePanel !== null} aria-hidden={!activePanel} inert={!activePanel}>
       <div className="panel-backdrop" onClick={onClose} aria-hidden="true" />
       <section className="paper-panel" ref={panelRef} aria-label="Defter yaprağı"
-          onTouchStart={(event) => { touchStart.current = event.touches[0].clientY; }}
+          onTouchStart={(event) => {
+            // Aşağı çekip kapatma yalnız içerik en üstteyken: kaydırılmış paneli yukarı kaydırmak onu kapatmasın.
+            touchStart.current = event.currentTarget.scrollTop <= 0 ? event.touches[0].clientY : null;
+          }}
           onTouchEnd={(event) => {
             if (touchStart.current !== null && event.changedTouches[0].clientY - touchStart.current > 45) onClose();
             touchStart.current = null;

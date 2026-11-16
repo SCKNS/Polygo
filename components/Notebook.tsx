@@ -13,6 +13,7 @@ export default function Notebook() {
   const [activePanel, setActivePanel] = useState<PanelId | null>(null);
   const pageRef = useRef<HTMLElement>(null);
   const closePanel = useCallback(() => setActivePanel(null), []);
+  const openColors = useCallback(() => setActivePanel("colors"), []);
 
   function moveHighlight(event: PointerEvent<HTMLElement>) {
     // Görsel ayrıntı React durumunu değiştirmez; hareket tercihi her zaman önceliklidir.
@@ -29,7 +30,7 @@ export default function Notebook() {
           <rect width="100%" height="100%" fill="url(#paper-grid)" />
         </svg>
         <Spiral />
-        <header className="notebook-header"><WordMark /><ToolBar /></header>
+        <header className="notebook-header"><WordMark /><ToolBar onOpenColors={openColors} /></header>
         <div className="workspace"><div className="canvas-composition"><Canvas template={DEFAULT_TEMPLATE} /></div></div>
         <footer className="page-footer"><span>küçük şekiller, kendine ait bir iz.</span><span>01 / çizim defteri</span></footer>
         <Tabs activePanel={activePanel} onChange={setActivePanel} />

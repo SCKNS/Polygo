@@ -1,4 +1,5 @@
-import type { Cell, Point } from "./types";
+import { cellsInRange } from "./grid";
+import type { Cell, Point, Template } from "./types";
 
 export type Direction = "up" | "down" | "left" | "right";
 
@@ -39,4 +40,15 @@ export function findNeighbor(cells: readonly Cell[], fromId: string, direction: 
     }
   }
   return bestId;
+}
+
+// Sınırsız ızgarada ok tuşu komşusu: hücrenin karesi ve çevresindeki 8 kare aranır.
+// Komşu her zaman bu 3×3 alanın içindedir, çünkü hücreler karelerinden taşmaz.
+export function findNeighborCell(template: Template, cell: Cell, direction: Direction): Cell | null {
+  const [cx, cy] = cellCenter(cell);
+  const x = Math.floor(cx);
+  const y = Math.floor(cy);
+  const candidates = cellsInRange(template, { left: x - 1, top: y - 1, right: x + 2, bottom: y + 2 });
+  const nextId = findNeighbor(candidates, cell.id, direction);
+  return candidates.find((candidate) => candidate.id === nextId) ?? null;
 }

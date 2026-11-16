@@ -2,8 +2,7 @@
 
 import { useCallback, useRef, useState, type PointerEvent } from "react";
 import { Spiral } from "./Spiral";
-import { WordMark } from "./WordMark";
-import { ToolBar } from "./ToolBar";
+import { Island } from "./Island";
 import { Canvas } from "./Canvas";
 import { Tabs, type PanelId } from "./Tabs";
 import { Panel } from "./Panel";
@@ -24,15 +23,11 @@ export default function Notebook() {
 
   return (
     <main className="desk">
+      <Island onOpenColors={openColors} />
       <section className="notebook" ref={pageRef} aria-label="Polygo çizim defteri" onPointerMove={moveHighlight}>
-        <svg className="page-grid" aria-hidden="true" width="100%" height="100%">
-          <defs><pattern id="paper-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" pathLength="1" fill="none" /></pattern></defs>
-          <rect width="100%" height="100%" fill="url(#paper-grid)" />
-        </svg>
+        {/* Sayfanın içi yalnız ızgara: tuval sayfayı kenardan kenara doldurur. */}
+        <div className="page-canvas"><Canvas template={DEFAULT_TEMPLATE} /></div>
         <Spiral />
-        <header className="notebook-header"><WordMark /><ToolBar onOpenColors={openColors} /></header>
-        <div className="workspace"><div className="canvas-composition"><Canvas template={DEFAULT_TEMPLATE} /></div></div>
-        <footer className="page-footer"><span>küçük şekiller, kendine ait bir iz.</span><span>01 / çizim defteri</span></footer>
         <Tabs activePanel={activePanel} onChange={setActivePanel} />
         <Panel activePanel={activePanel} onClose={closePanel} />
       </section>

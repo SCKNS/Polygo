@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getTemplate, TEMPLATES, type Point, type TemplateId } from "./index";
+import { cellsInRange, getTemplate, TEMPLATES, type Point, type SquareRange, type TemplateId } from "./index";
 
 // Kayan nokta hataları için tolerans. Testler toleranslıdır, örneklemesizdir (her köşe/kenar hesaplanır);
 // koordinatlar 0.5'in katları olduğundan hesaplar pratikte tam çıkar.
@@ -113,42 +113,58 @@ function interiorsOverlap(a: readonly Point[], b: readonly Point[]): boolean {
   return true;
 }
 
-// Beklenen hücre sayıları sabit: bir değişiklik id'leri/kayıtları bozarsa test kırılır.
+// Kare başına beklenen hücre sayıları sabit: bir değişiklik id'leri/kayıtları bozarsa test kırılır.
 // Record<TemplateId, ...>: yeni şablon kimliği eklenip burası unutulursa TypeScript hata verir.
-const EXPECTED_CELL_COUNTS: Record<TemplateId, number> = {
-  square: 64,
-  diagonal: 128,
-  cross: 144,
+const EXPECTED_CELLS_PER_SQUARE: Record<TemplateId, number> = {
+  square: 1,
+  diagonal: 2,
+  cross: 4,
 };
+
+// Izgara sınırsız; geometri, negatif koordinatları da içeren sonlu bir bölgede denetlenir.
+// Desen her karede aynı olduğundan bu bölgede doğru olan her yerde doğrudur (id'ler hariç: onlar ayrıca sınanır).
+const REGION: SquareRange = { left: -3, top: -2, right: 3, bottom: 2 };
+const REGION_AREA = (REGION.right - REGION.left) * (REGION.bottom - REGION.top);
 
 for (const template of TEMPLATES) {
   describe(`${template.name} şablonu`, () => {
-    it("pozitif boyutlu ve beklenen hücre sayısında", () => {
-      expect(template.width).toBeGreaterThan(0);
-      expect(template.height).toBeGreaterThan(0);
-      expect(template.cells.length).toBe(EXPECTED_CELL_COUNTS[template.id]);
+    const cells = cellsInRange(template, REGION);
+
+    it("her karede beklenen sayıda hücre var", () => {
+      expect(template.cellsInSquare(0, 0).length).toBe(EXPECTED_CELLS_PER_SQUARE[template.id]);
+      expect(cells.length).toBe(EXPECTED_CELLS_PER_SQUARE[template.id] * REGION_AREA);
     });
 
-    it("hücre id'leri benzersiz", () => {
-      const ids = template.cells.map((cell) => cell.id);
+    it("hücre id'leri bölgede benzersiz (negatif koordinatlar dahil)", () => {
+      const ids = cells.map((cell) => cell.id);
       expect(new Set(ids).size).toBe(ids.length);
     });
 
-    it("her hücre en az 3 köşeli, basit, dışbükey ve tuval sınırları içinde", () => {
-      for (const cell of template.cells) {
-        expect(cell.points.length, cell.id).toBeGreaterThanOrEqual(3);
-        expect(isConvexPolygon(cell.points), cell.id).toBe(true);
-        for (const [x, y] of cell.points) {
-          expect(x).toBeGreaterThanOrEqual(0);
-          expect(x).toBeLessThanOrEqual(template.width);
-          expect(y).toBeGreaterThanOrEqual(0);
-          expect(y).toBeLessThanOrEqual(template.height);
+    // id dünya koordinatıyla başlar: boyama kaydı, hücre ekranda nerede çizilirse çizilsin aynı hücreyi bulur.
+    it("id'ler karenin koordinatıyla başlar", () => {
+      for (const cell of template.cellsInSquare(-2, 5)) {
+        expect(cell.id === "-2-5" || cell.id.startsWith("-2-5-"), cell.id).toBe(true);
+      }
+    });
+
+    it("her hücre en az 3 köşeli, basit, dışbükey ve kendi karesinin içinde", () => {
+      for (let y = REGION.top; y < REGION.bottom; y++) {
+        for (let x = REGION.left; x < REGION.right; x++) {
+          for (const cell of template.cellsInSquare(x, y)) {
+            expect(cell.points.length, cell.id).toBeGreaterThanOrEqual(3);
+            expect(isConvexPolygon(cell.points), cell.id).toBe(true);
+            for (const [px, py] of cell.points) {
+              expect(px, cell.id).toBeGreaterThanOrEqual(x);
+              expect(px, cell.id).toBeLessThanOrEqual(x + 1);
+              expect(py, cell.id).toBeGreaterThanOrEqual(y);
+              expect(py, cell.id).toBeLessThanOrEqual(y + 1);
+            }
+          }
         }
       }
     });
 
     it("hiçbir iki hücrenin içi kesişmiyor (örtüşme yok)", () => {
-      const { cells } = template;
       for (let i = 0; i < cells.length; i++) {
         for (let j = i + 1; j < cells.length; j++) {
           expect(
@@ -159,13 +175,10 @@ for (const template of TEMPLATES) {
       }
     });
 
-    // Hücreler sınır içinde ve örtüşmesizse, alanlar toplamı tuval alanına eşitliği boşluk olmadığını kanıtlar.
-    it("hücre alanlarının toplamı tuval alanına eşit (boşluk yok)", () => {
-      const total = template.cells.reduce(
-        (sum, cell) => sum + Math.abs(signedArea(cell.points)),
-        0,
-      );
-      expect(total).toBeCloseTo(template.width * template.height, 9);
+    // Hücreler karelerinin içinde ve örtüşmesizse, alanlar toplamının bölge alanına eşitliği boşluk olmadığını kanıtlar.
+    it("hücre alanlarının toplamı bölge alanına eşit (boşluk yok)", () => {
+      const total = cells.reduce((sum, cell) => sum + Math.abs(signedArea(cell.points)), 0);
+      expect(total).toBeCloseTo(REGION_AREA, 9);
     });
   });
 }

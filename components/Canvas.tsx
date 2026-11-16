@@ -1,32 +1,26 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { toPointsAttribute, type Template } from "@/lib/templates";
-import { findNeighbor, type Direction } from "@/lib/templates/neighbors";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { cellAt, cellsInRange, toPointsAttribute, type Cell, type Template } from "@/lib/templates";
+import { cellCenter, findNeighborCell, type Direction } from "@/lib/templates/neighbors";
 import { usePaintStore } from "@/lib/paintStore";
-import { ZoomControls } from "./ZoomControls";
+import { useViewStore } from "@/lib/viewStore";
+import {
+  panCamera, toScreen, toViewBox, toWorld, visibleRange, zoomCamera, ZOOM_STEP,
+  type ScreenPoint, type Size,
+} from "@/lib/camera";
 
 type CanvasProps = {
   template: Template;
 };
 
-type ScreenPoint = { x: number; y: number };
-
-// Dış çerçeve ve kenar çizgileri tuvalin sınırında ortalanarak çizilir; yarısı dışarı taşmasın diye
-// viewBox her yönden bu kadar (birim) genişletilir. overflow: visible'a güvenilmez.
-// Sınır: çizgi kalınlığı ekran pikseliyle (non-scaling-stroke), pay ise birimle ölçülür. 1.1px çerçevenin yarısı
-// (0.55px) için birim başına ≥11px gerekir: 8 birimlik şablonda tuval ≥ ~90px, 6 birimlikte ≥ ~68px olmalı.
-// Mevcut düzende tuval en az ~280px; küçük önizlemelerde (Adım 4) bu ayrıca ele alınmalı.
-const FRAME_PADDING = 0.05;
-
-// Yakınlaştırma sınırları. 375px telefonda Dörtlü üçgenleri ~22-27px; 2× ve üstünde parmak hedefi ≥44px olur.
-const MIN_ZOOM = 1;
-const MAX_ZOOM = 4;
-const ZOOM_STEP = 1.5;
-
 // Hızlı sürüklemede işaretçi olayları seyrek gelir (iki olay arası 50px+ olabilir). Aradaki hücreler atlanmasın diye
-// iki konum arasındaki çizgi bu aralıkla taranır. En küçük hücre ~22px olduğundan 3px, köşeden sıyıranlar dışında her hücreyi yakalar.
+// iki konum arasındaki çizgi bu aralıkla taranır. En küçük hücre ~20px olduğundan 3px, köşeden sıyıranlar dışında her hücreyi yakalar.
 const SAMPLE_STEP_PX = 3;
+// Klavyeyle seçilen hücre kenara bu kadar pikselden fazla yaklaşırsa görüş onu ortalar.
+const FOCUS_MARGIN_PX = 48;
+// Teker satır cinsinden kaydırırsa (Firefox) satır başına piksel.
+const LINE_HEIGHT_PX = 16;
 
 const ARROW_KEYS: Record<string, Direction> = {
   ArrowUp: "up",
@@ -34,28 +28,6 @@ const ARROW_KEYS: Record<string, Direction> = {
   ArrowLeft: "left",
   ArrowRight: "right",
 };
-
-function clampZoom(zoom: number): number {
-  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(zoom * 100) / 100));
-}
-
-// Ekrandaki noktanın altındaki hücrenin id'si (yoksa null).
-function cellIdAt({ x, y }: ScreenPoint): string | null {
-  const element = document.elementFromPoint(x, y);
-  return element instanceof SVGElement ? element.getAttribute("data-cell-id") : null;
-}
-
-// İki konum arasındaki çizginin geçtiği hücreler, sırasıyla (başlangıç noktası hariç, art arda tekrar yok).
-function cellIdsAlong(from: ScreenPoint, to: ScreenPoint): string[] {
-  const steps = Math.max(1, Math.ceil(distance(from, to) / SAMPLE_STEP_PX));
-  const ids: string[] = [];
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const id = cellIdAt({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t });
-    if (id && ids[ids.length - 1] !== id) ids.push(id);
-  }
-  return ids;
-}
 
 function midpoint(a: ScreenPoint, b: ScreenPoint): ScreenPoint {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
@@ -65,82 +37,143 @@ function distance(a: ScreenPoint, b: ScreenPoint): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-export function Canvas({ template }: CanvasProps) {
-  const { width, height, cells } = template;
-  const viewBox = `${-FRAME_PADDING} ${-FRAME_PADDING} ${width + 2 * FRAME_PADDING} ${height + 2 * FRAME_PADDING}`;
+// Bütün hücre kenarları tek bir yol: binlerce ayrı öğe yerine tek öğe, ortak kenarlar iki kez çizilse de koyulaşmaz.
+function linesPath(cells: readonly Cell[]): string {
+  return cells.map((cell) => "M" + cell.points.map(([x, y]) => `${x} ${y}`).join("L") + "Z").join("");
+}
 
+export function Canvas({ template }: CanvasProps) {
   const fills = usePaintStore((state) => state.fills);
   const startStroke = usePaintStore((state) => state.startStroke);
   const paintCell = usePaintStore((state) => state.paintCell);
   const endStroke = usePaintStore((state) => state.endStroke);
   const cancelStroke = usePaintStore((state) => state.cancelStroke);
+  const camera = useViewStore((state) => state.camera);
+  const setCamera = useViewStore((state) => state.setCamera);
 
-  const [zoom, setZoom] = useState(MIN_ZOOM);
-  const [focusedId, setFocusedId] = useState(cells[0].id);
-  const viewportRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  // Ekrana değen parmaklar/fare: pointerId -> son konum.
+  // Ölçülene dek (sunucuda ve ilk çizimde) boyut bilinmez; o sırada hücre çizilmez.
+  const [size, setSize] = useState<Size | null>(null);
+  const [focusedCell, setFocusedCell] = useState<Cell | null>(null);
+  // Ekrana değen parmaklar/fare: pointerId -> son konum (tuvale göre).
   const pointers = useRef(new Map<number, ScreenPoint>());
   // İki parmak hareketi sürerken: başlangıç mesafesi ve yakınlaştırması. Tüm parmaklar kalkana dek boyama yapılmaz.
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
+  // Orta tuşla sürükleyerek kaydırma sürüyor mu?
+  const panning = useRef(false);
 
-  // Yakınlaştırmayı değiştirir; `from` noktasının altındaki tuval noktası ekranda `to` noktasına gelir.
-  // Genişlik doğrudan DOM'a yazılır ki kaydırma aynı anda, yeni boyuta göre ayarlanabilsin.
-  function applyZoom(nextZoom: number, from: ScreenPoint, to: ScreenPoint) {
+  useEffect(() => {
     const svg = svgRef.current;
-    const viewport = viewportRef.current;
-    if (!svg || !viewport) return;
-    const zoomValue = clampZoom(nextZoom);
-    const before = svg.getBoundingClientRect();
-    const fractionX = (from.x - before.left) / before.width;
-    const fractionY = (from.y - before.top) / before.height;
-    svg.style.width = `${zoomValue * 100}%`;
-    const after = svg.getBoundingClientRect();
-    viewport.scrollLeft += after.left + fractionX * after.width - to.x;
-    viewport.scrollTop += after.top + fractionY * after.height - to.y;
-    setZoom(zoomValue);
+    if (!svg) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    observer.observe(svg);
+
+    // Teker kaydırır, Ctrl/Cmd + teker (dokunmatik yüzeyde iki parmak sıkıştırma) imleç çevresinde yakınlaştırır.
+    // React'in onWheel'i pasif olduğundan sayfanın kaymasını engelleyemez; dinleyici elle eklenir.
+    function handleWheel(event: WheelEvent) {
+      event.preventDefault();
+      const rect = svg!.getBoundingClientRect();
+      const box = { width: rect.width, height: rect.height };
+      const { camera: current, setCamera: update } = useViewStore.getState();
+      const unit = event.deltaMode === 1 ? LINE_HEIGHT_PX : 1;
+      if (event.ctrlKey || event.metaKey) {
+        const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        update(zoomCamera(current, box, current.zoom * Math.exp(-event.deltaY * unit * 0.01), point, point));
+      } else if (event.shiftKey && event.deltaX === 0) {
+        update(panCamera(current, event.deltaY * unit, 0)); // Shift + teker: yatay
+      } else {
+        update(panCamera(current, event.deltaX * unit, event.deltaY * unit));
+      }
+    }
+    svg.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      observer.disconnect();
+      svg.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
+
+  // Görünen kareler RANGE_CHUNK katlarına yuvarlandığından, kaydırırken liste yalnız aralık değişince yeniden üretilir.
+  const { left, top, right, bottom } = size ? visibleRange(camera, size) : { left: 0, top: 0, right: 0, bottom: 0 };
+  const cells = useMemo(
+    () => cellsInRange(template, { left, top, right, bottom }),
+    [template, left, top, right, bottom],
+  );
+  const lines = useMemo(() => linesPath(cells), [cells]);
+  const paintedCells = useMemo(() => cells.filter((cell) => fills[cell.id]), [cells, fills]);
+
+  // Kullanıcı henüz hücre seçmediyse klavye odağı ekranın ortasındaki hücrededir.
+  const focused = focusedCell ?? cellAt(template, [camera.x, camera.y]);
+  const paintedCount = Object.keys(fills).length;
+
+  function localPoint(event: PointerEvent<SVGSVGElement>): ScreenPoint {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
-  function zoomAroundCenter(nextZoom: number) {
-    const rect = viewportRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    applyZoom(nextZoom, center, center);
+  function cellUnder(point: ScreenPoint): Cell | null {
+    if (!size) return null;
+    return cellAt(template, toWorld(useViewStore.getState().camera, size, point));
+  }
+
+  // İki konum arasındaki çizginin geçtiği hücrelerin id'leri, sırasıyla (başlangıç noktası hariç, art arda tekrar yok).
+  function cellIdsAlong(from: ScreenPoint, to: ScreenPoint): string[] {
+    const steps = Math.max(1, Math.ceil(distance(from, to) / SAMPLE_STEP_PX));
+    const ids: string[] = [];
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const id = cellUnder({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t })?.id;
+      if (id && ids[ids.length - 1] !== id) ids.push(id);
+    }
+    return ids;
   }
 
   function handlePointerDown(event: PointerEvent<SVGSVGElement>) {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    event.preventDefault(); // Fareyle sürüklerken metin seçilmesin.
+    const isMouse = event.pointerType === "mouse";
+    if (isMouse && event.button !== 0 && event.button !== 1) return;
+    event.preventDefault(); // Fareyle sürüklerken metin seçilmesin, orta tuş otomatik kaydırmayı açmasın.
     event.currentTarget.setPointerCapture(event.pointerId);
-    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const point = localPoint(event);
+    pointers.current.set(event.pointerId, point);
 
+    if (isMouse && event.button === 1) {
+      panning.current = true;
+      event.currentTarget.dataset.panning = "true"; // imleç: tutup sürükleme (CSS)
+      return;
+    }
     if (pointers.current.size === 2) {
-      // İkinci parmak geldi: bu bir yakınlaştırma; ilk parmağın boyadığı geri alınır.
+      // İkinci parmak geldi: bu bir yakınlaştırma/kaydırma; ilk parmağın boyadığı geri alınır.
       cancelStroke();
       const [a, b] = [...pointers.current.values()];
-      pinch.current = { distance: distance(a, b), zoom };
+      pinch.current = { distance: distance(a, b), zoom: useViewStore.getState().camera.zoom };
       return;
     }
     if (pointers.current.size > 2 || pinch.current) return;
 
-    const cellId = cellIdAt({ x: event.clientX, y: event.clientY });
-    if (cellId) {
-      setFocusedId(cellId);
-      startStroke(cellId);
+    const cell = cellUnder(point);
+    if (cell) {
+      setFocusedCell(cell);
+      startStroke(cell.id);
     }
   }
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
     const previous = pointers.current.get(event.pointerId);
-    if (!previous) return;
-    const current = { x: event.clientX, y: event.clientY };
+    if (!previous || !size) return;
+    const current = localPoint(event);
     pointers.current.set(event.pointerId, current);
+    const view = useViewStore.getState().camera;
 
+    if (panning.current) {
+      setCamera(panCamera(view, previous.x - current.x, previous.y - current.y));
+      return;
+    }
     if (pinch.current) {
       if (pointers.current.size !== 2) return;
       const other = [...pointers.current.entries()].find(([id]) => id !== event.pointerId)![1];
       const scale = distance(current, other) / pinch.current.distance;
-      applyZoom(pinch.current.zoom * scale, midpoint(previous, other), midpoint(current, other));
+      setCamera(zoomCamera(view, size, pinch.current.zoom * scale, midpoint(previous, other), midpoint(current, other)));
       return;
     }
 
@@ -154,6 +187,11 @@ export function Canvas({ template }: CanvasProps) {
   // Parmak/fare kalktı: fırça tamamlanır ve tek geri alma adımı olur.
   function handlePointerUp(event: PointerEvent<SVGSVGElement>) {
     if (!pointers.current.delete(event.pointerId)) return;
+    if (panning.current) {
+      panning.current = false;
+      delete event.currentTarget.dataset.panning;
+      return;
+    }
     if (pinch.current) {
       if (pointers.current.size === 0) pinch.current = null;
       return;
@@ -163,9 +201,13 @@ export function Canvas({ template }: CanvasProps) {
 
   // Tarayıcı hareketi kesti (pointercancel: sistem hareketi, bildirim, dokunma iptali) ya da işaretçi yakalaması
   // kaybedildi: yarım fırça kaydedilmez, geri alınır. İşaretçi listeden silinir ki sonraki dokunuş "ikinci parmak" sanılmasın.
-  // pointerup'tan sonra gelen lostpointercapture'da işaretçi zaten silinmiş olduğundan bir şey yapmaz.
   function handlePointerCancel(event: PointerEvent<SVGSVGElement>) {
     if (!pointers.current.delete(event.pointerId)) return;
+    if (panning.current) {
+      panning.current = false;
+      delete event.currentTarget.dataset.panning;
+      return;
+    }
     if (pinch.current) {
       if (pointers.current.size === 0) pinch.current = null;
       return;
@@ -173,72 +215,70 @@ export function Canvas({ template }: CanvasProps) {
     cancelStroke();
   }
 
-  // Dokunmada tarayıcı yakalamayı önce hücreye (polygon) verir; biz SVG'ye alınca hücrenin "kaybetti" olayı buraya
-  // kabarcıklanır. O olay fırçayı iptal etmemeli: yalnız SVG'nin kendi yakalamasını kaybetmesi sayılır.
+  // Dokunmada tarayıcı yakalamayı önce alttaki öğeye verebilir; o öğenin "kaybetti" olayı buraya kabarcıklanır.
+  // Yalnız SVG'nin kendi yakalamasını kaybetmesi fırçayı iptal eder.
   function handleLostCapture(event: PointerEvent<SVGSVGElement>) {
     if (event.target === event.currentTarget) handlePointerCancel(event);
   }
 
+  // Seçilen hücre ekran kenarına çok yaklaştıysa (ya da dışına çıktıysa) görüş onu ortalar.
+  function keepInView(cell: Cell) {
+    if (!size) return;
+    const view = useViewStore.getState().camera;
+    const center = cellCenter(cell);
+    const { x, y } = toScreen(view, size, center);
+    const inside = x > FOCUS_MARGIN_PX && x < size.width - FOCUS_MARGIN_PX && y > FOCUS_MARGIN_PX && y < size.height - FOCUS_MARGIN_PX;
+    if (!inside) setCamera({ ...view, x: center[0], y: center[1] });
+  }
+
   function handleKeyDown(event: KeyboardEvent<SVGSVGElement>) {
     const direction = ARROW_KEYS[event.key];
+    const { zoomTo } = useViewStore.getState();
     if (direction) {
       event.preventDefault();
-      const next = findNeighbor(cells, focusedId, direction);
-      if (next) setFocusedId(next);
-      // Yakınken seçilen hücre görünür alanda kalsın.
-      requestAnimationFrame(() => svgRef.current?.querySelector(".cell-focus")?.scrollIntoView({ block: "nearest", inline: "nearest" }));
-    } else if (event.key === "Enter" || event.key === " ") {
+      if (!focused) return;
+      const next = findNeighborCell(template, focused, direction);
+      if (next) {
+        setFocusedCell(next);
+        keepInView(next);
+      }
+    } else if ((event.key === "Enter" || event.key === " ") && focused) {
       event.preventDefault();
-      startStroke(focusedId);
+      setFocusedCell(focused);
+      startStroke(focused.id);
       endStroke();
     } else if (event.key === "+" || event.key === "=") {
       event.preventDefault();
-      zoomAroundCenter(zoom * ZOOM_STEP);
+      zoomTo(camera.zoom * ZOOM_STEP);
     } else if (event.key === "-") {
       event.preventDefault();
-      zoomAroundCenter(zoom / ZOOM_STEP);
+      zoomTo(camera.zoom / ZOOM_STEP);
     }
   }
 
-  const focusedCell = cells.find((cell) => cell.id === focusedId) ?? cells[0];
-  const paintedCount = cells.filter((cell) => fills[cell.id]).length;
-
   return (
     <div className="canvas-area">
-      <div className="canvas-viewport" ref={viewportRef} style={{ aspectRatio: `${width} / ${height}` }}>
-        <svg ref={svgRef} className="drawing-canvas" viewBox={viewBox} style={{ width: `${zoom * 100}%` }}
-          tabIndex={0} role="application" aria-roledescription="çizim tuvali"
-          aria-label={`${template.name} şablonu: ${cells.length} hücre, ${paintedCount} boyalı. Ok tuşlarıyla hücre seç, Enter ya da Boşluk ile boya; aynı renge tekrar basmak siler. Artı ve eksi yakınlaştırır.`}
-          onPointerDown={handlePointerDown} onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} onLostPointerCapture={handleLostCapture}
-          onKeyDown={handleKeyDown}>
-          {/* Boş hücre şeffaf kalır; boyalı hücrenin rengi depodan gelir. */}
-          <g className="canvas-cells">
-            {cells.map((cell) => (
-              <polygon key={cell.id} className="canvas-cell" data-cell-id={cell.id}
-                points={toPointsAttribute(cell.points)} style={fills[cell.id] ? { fill: fills[cell.id] } : undefined} />
-            ))}
-          </g>
-          {/* Çizgiler ayrı katmanda: ortak kenarlar iki kez çizilse de grup saydamlığı tek seferde uygulanır. */}
-          <g className="canvas-lines" aria-hidden="true">
-            {cells.map((cell) => (
-              <polygon key={cell.id} points={toPointsAttribute(cell.points)} vectorEffect="non-scaling-stroke" />
-            ))}
-          </g>
-          <rect className="canvas-frame" width={width} height={height} vectorEffect="non-scaling-stroke" />
-          {/* Klavye odağı: yalnız tuval klavyeyle odaklanınca görünür (CSS). */}
-          <polygon className="cell-focus" points={toPointsAttribute(focusedCell.points)} vectorEffect="non-scaling-stroke" />
-        </svg>
-      </div>
-      <div className="canvas-footer">
-        <p className="canvas-caption">küçük kareler, sonsuz ihtimal.</p>
-        <ZoomControls zoom={zoom} minZoom={MIN_ZOOM} maxZoom={MAX_ZOOM}
-          onZoomIn={() => zoomAroundCenter(zoom * ZOOM_STEP)}
-          onZoomOut={() => zoomAroundCenter(zoom / ZOOM_STEP)}
-          onReset={() => zoomAroundCenter(MIN_ZOOM)} />
-      </div>
+      <svg ref={svgRef} className="drawing-canvas" viewBox={size ? toViewBox(camera, size) : undefined}
+        preserveAspectRatio="none"
+        tabIndex={0} role="application" aria-roledescription="çizim tuvali"
+        aria-label={`${template.name} şablonu, sınırsız ızgara: ${paintedCount} boyalı hücre. Ok tuşlarıyla hücre seç, Enter ya da Boşluk ile boya; aynı renge tekrar basmak siler. Artı ve eksi yakınlaştırır.`}
+        onPointerDown={handlePointerDown} onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} onLostPointerCapture={handleLostCapture}
+        onKeyDown={handleKeyDown}>
+        {/* Yalnız boyalı hücreler çizilir; boş hücre şeffaftır ve hangi hücreye dokunulduğu geometriyle bulunur. */}
+        <g className="canvas-cells">
+          {paintedCells.map((cell) => (
+            <polygon key={cell.id} data-cell-id={cell.id} points={toPointsAttribute(cell.points)} style={{ fill: fills[cell.id] }} />
+          ))}
+        </g>
+        <path className="canvas-lines" d={lines} vectorEffect="non-scaling-stroke" aria-hidden="true" />
+        {/* Klavye odağı: yalnız tuval klavyeyle odaklanınca görünür (CSS). */}
+        {focused && (
+          <polygon className="cell-focus" points={toPointsAttribute(focused.points)} vectorEffect="non-scaling-stroke" />
+        )}
+      </svg>
       <p className="sr-only" aria-live="polite">
-        {`Seçili hücre ${focusedCell.id}: ${fills[focusedCell.id] ?? "boş"}`}
+        {focused ? `Seçili hücre ${focused.id}: ${fills[focused.id] ?? "boş"}` : ""}
       </p>
     </div>
   );

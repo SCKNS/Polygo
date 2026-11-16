@@ -13,11 +13,10 @@ export type Cell = {
 // Yeni şablon eklerken kimliği buraya da eklemek gerekir (index.ts'teki açıklamaya bakın).
 export type TemplateId = "square" | "diagonal" | "cross";
 
-// Şablon: tuvalin genişliği/yüksekliği (birim) ve hücrelerin listesi.
+// Şablon: her yöne sınırsız tekrar eden bir desen. Izgaranın her 1×1 karesi aynı biçimde hücrelere bölünür;
+// cellsInSquare(x, y) o karenin hücrelerini verir. Hücreler kareden taşmaz, kareyi boşluksuz ve örtüşmesiz doldurur.
 export type Template = {
   readonly id: TemplateId;
   readonly name: string;
-  readonly width: number;
-  readonly height: number;
-  readonly cells: readonly Cell[];
+  readonly cellsInSquare: (x: number, y: number) => readonly Cell[];
 };
